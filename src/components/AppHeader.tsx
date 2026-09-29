@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { UI } from "@/lib/copy";
+import { AuthPanel } from "./AuthPanel";
 import { useAppStore } from "@/state/AppStore";
 
 /**
@@ -111,6 +112,7 @@ export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) 
               </div>
             ) : null}
           </div>
+          <AuthPanel email={null} />
         </div>
       </div>
     </header>
