@@ -29,6 +29,14 @@ export const metadata: Metadata = {
     "Say it once. Pocket holds it, reminds you, and never lets it go quiet. Capture a thought in seconds, decide later, and nothing you skip is hidden from you.",
   applicationName: "Pocket",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
