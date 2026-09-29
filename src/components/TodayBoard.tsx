@@ -13,7 +13,7 @@ import {
   todayTasks,
 } from "@/lib/selectors";
 import { searchTasks } from "@/lib/search";
-import { describeDue, describeMinutes } from "@/lib/format";
+import { describeDue, describeMinutes, toDateTimeLocalValue } from "@/lib/format";
 import { useAppStore } from "@/state/AppStore";
 import type { AreaIcon, Task } from "@/lib/types";
 
@@ -283,9 +283,14 @@ function TaskRow({ task }: { task: Task }) {
   const { state, dispatch, now } = useAppStore();
   const [dropOpen, setDropOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
+  const [dueOpen, setDueOpen] = useState(false);
   const [reason, setReason] = useState("");
   const area = task.areaId ? (state.areas.find((entry) => entry.id === task.areaId) ?? null) : null;
   const status = STATUS[task.status];
+
+  const dueLocalValue = task.dueAt
+    ? toDateTimeLocalValue(new Date(task.dueAt))
+    : toDateTimeLocalValue(new Date(now.getTime() + 60 * 60_000));
 
   function snoozeUntil(hour: number) {
     const target = new Date(now);
@@ -323,7 +328,15 @@ function TaskRow({ task }: { task: Task }) {
       </div>
 
       <p className="meta">
-        <span>{describeDue(task.dueAt, now)}</span>
+        {task.dueAt ? (
+          <button type="button" className="linkish" aria-expanded={dueOpen} onClick={() => setDueOpen((open) => !open)}>
+            {UI.dueLabel} {describeDue(task.dueAt, now)}
+          </button>
+        ) : (
+          <button type="button" className="linkish" aria-expanded={dueOpen} onClick={() => setDueOpen((open) => !open)}>
+            {UI.duePick}
+          </button>
+        )}
         {task.estimateMinutes !== null ? <span>{describeMinutes(task.estimateMinutes)}</span> : null}
         {task.energy ? <span>{task.energy} energy</span> : null}
         {area ? (
@@ -397,6 +410,36 @@ function TaskRow({ task }: { task: Task }) {
           </button>
           <button type="button" className="btn" onClick={() => snoozeUntil(9)}>
             {ACTIONS.snoozeMorning}
+          </button>
+        </div>
+      ) : null}
+
+      {dueOpen ? (
+        <div className="row row--wrap inline-form">
+          <label className="field">
+            <span>{UI.dueLabel}</span>
+            <input
+              type="datetime-local"
+              value={dueLocalValue}
+              onChange={(event) => {
+                const picked = new Date(event.target.value);
+                dispatch({
+                  type: "update",
+                  id: task.id,
+                  patch: { dueAt: Number.isNaN(picked.getTime()) ? null : picked.toISOString() },
+                });
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn--quiet"
+            onClick={() => {
+              dispatch({ type: "update", id: task.id, patch: { dueAt: null } });
+              setDueOpen(false);
+            }}
+          >
+            {UI.dueClear}
           </button>
         </div>
       ) : null}

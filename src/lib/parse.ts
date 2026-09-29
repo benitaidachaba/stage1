@@ -64,13 +64,11 @@ function buildDate(
 ): Date {
   const base = day ? new Date(day) : new Date(now);
   if (time) {
+    // The device clock is the truth: a bare time already passed stays today,
+    // where the person said it. No silent shifting to tomorrow.
     base.setHours(time.hours, time.minutes, 0, 0);
   } else {
     base.setHours(day ? DEFAULT_DUE_HOUR : base.getHours(), day ? 0 : base.getMinutes(), 0, 0);
-  }
-  // A bare time that has already passed today means tomorrow.
-  if (!day && time && base.getTime() <= now.getTime()) {
-    return addDays(base, 1);
   }
   return base;
 }
@@ -192,22 +190,14 @@ export function parseCapture(raw: string, now: Date = new Date()): ParsedCapture
       const year = yearRaw
         ? Number.parseInt(yearRaw.length === 2 ? `20${yearRaw}` : yearRaw, 10)
         : now.getFullYear();
-      const candidate = new Date(year, monthIndex, dayOfMonth);
-      // With no year written, a past date means the person is thinking of next year.
-      daySource =
-        !yearRaw && candidate.getTime() < new Date(now).setHours(0, 0, 0, 0)
-          ? new Date(year + 1, monthIndex, dayOfMonth)
-          : candidate;
+      // The year is taken as written or the current one; no guessing forward.
+      daySource = new Date(year, monthIndex, dayOfMonth);
     } else if (dayFirst || monthFirst) {
       const dayOfMonth = Number.parseInt(dayFirst ? dayFirst[1] : (monthFirst?.[2] ?? "0"), 10);
       const monthName = (dayFirst ? dayFirst[2] : monthFirst?.[1]) ?? "";
       const monthIndex = MONTHS.indexOf(monthName.toLowerCase() as (typeof MONTHS)[number]);
       if (dayOfMonth > 0 && monthIndex >= 0) {
-        const candidate = new Date(now.getFullYear(), monthIndex, dayOfMonth);
-        daySource =
-          candidate.getTime() < new Date(now).setHours(0, 0, 0, 0)
-            ? new Date(now.getFullYear() + 1, monthIndex, dayOfMonth)
-            : candidate;
+        daySource = new Date(now.getFullYear(), monthIndex, dayOfMonth);
       }
     }
   }

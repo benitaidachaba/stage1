@@ -1,4 +1,4 @@
-import type { Area, PersistedState, Reminder, Settings, Task, AppState, Step } from "./types";
+import type { Area, Note, PersistedState, Reminder, Settings, Task, AppState, Step } from "./types";
 
 /** Bumped when the persisted shape changes, so migrations can run. */
 export const SCHEMA_VERSION = 2;
@@ -6,6 +6,9 @@ export const SCHEMA_VERSION = 2;
 export const STORAGE_KEY = "smallsteps.tasks.v2";
 
 /** How long the undo toast stays live. Long on purpose: missed taps are normal. */
+/** The Now view owns the last minutes before a task is due. */
+export const NOW_WINDOW_MINUTES = 10;
+
 export const UNDO_WINDOW_MS = 15_000;
 export const UNDO_STACK_LIMIT = 25;
 
@@ -126,8 +129,23 @@ export function makeArea(partial: Partial<Area>, at: string): Area {
   };
 }
 
+/** A note that satisfies the invariants: body present, timestamps set. */
+export function makeNote(
+  partial: Partial<Omit<Note, "createdAt" | "updatedAt">> & { createdAt?: string; updatedAt?: string },
+  at: string,
+): Note {
+  return {
+    id: partial.id ?? "",
+    title: partial.title ?? "",
+    body: partial.body ?? "",
+    createdAt: partial.createdAt ?? at,
+    updatedAt: partial.updatedAt ?? at,
+    archived: partial.archived ?? false,
+  };
+}
+
 export function emptyPersistedState(): PersistedState {
-  return { version: SCHEMA_VERSION, tasks: [], areas: [], events: [], settings: defaultSettings() };
+  return { version: SCHEMA_VERSION, tasks: [], areas: [], notes: [], events: [], settings: defaultSettings() };
 }
 
 export function initialState(): AppState {

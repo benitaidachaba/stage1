@@ -66,6 +66,12 @@ export function useVoiceInput(onText: (text: string) => void): VoiceInput {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  /** Settled text committed so far, indexed by result, so nothing doubles. */
+  const committedRef = useRef("");
+  /** How many results have been settled and folded into the committed text. */
+  const heardRef = useRef(0);
+  /** True between start and stop; drives the auto-restart on early end. */
+  const wantListeningRef = useRef(false);
   const onTextRef = useRef(onText);
   useEffect(() => {
     onTextRef.current = onText;
@@ -114,28 +120,31 @@ export function useVoiceInput(onText: (text: string) => void): VoiceInput {
       recognition.lang = typeof navigator !== "undefined" ? navigator.language : "en-GB";
       recognition.continuous = true;
       recognition.interimResults = true;
+      /*
+       * Two rules keep the transcript honest:
+       *  1. settled results are committed exactly once, by result index —
+       *     re-reading them is where doubled words came from;
+       *  2. the live text is always the settled text plus the interim tail,
+       *     so the field holds the whole sentence, however long.
+       */
+      committedRef.current = "";
+      heardRef.current = 0;
       recognition.onresult = (event) => {
-        let finalText = "";
         let interimText = "";
-        for (let index = 0; index < event.results.length; index += 1) {
+        for (let index = heardRef.current; index < event.results.length; index += 1) {
           const result = event.results[index];
           const transcript = result?.[0]?.transcript ?? "";
-          if (index === event.results.length - 1 && result) {
-            // The last result is the live one; earlier ones are already settled.
-            const isFinal = Object.prototype.hasOwnProperty.call(result, "isFinal")
-              ? (result as unknown as { isFinal: boolean }).isFinal
-              : false;
-            if (isFinal) finalText += transcript;
-            else interimText += transcript;
+          const isFinal = Boolean((result as unknown as { isFinal?: boolean } | undefined)?.isFinal);
+          if (isFinal) {
+            committedRef.current = `${committedRef.current} ${transcript.trim()}`.trim();
+            heardRef.current = index + 1;
           } else {
-            finalText += transcript;
+            interimText += transcript;
           }
         }
-        setInterim(interimText);
-        if (finalText.trim().length > 0) {
-          onTextRef.current(finalText.trim());
-          setInterim("");
-        }
+        const live = `${committedRef.current} ${interimText.trim()}`.trim();
+        setInterim(interimText.trim());
+        if (live.length > 0) onTextRef.current(live);
       };
       recognition.onerror = (event) => {
         if (event.error === "no-speech") {
@@ -147,17 +156,32 @@ export function useVoiceInput(onText: (text: string) => void): VoiceInput {
         }
         setState("error");
       };
+      /*
+       * Continuous recognition ends on its own after a pause on some browsers;
+       * while the person still holds the button, restart so a long thought
+       * is never cut off at ten words.
+       */
       recognition.onend = () => {
+        if (wantListeningRef.current) {
+          try {
+            recognition.start();
+            return;
+          } catch {
+            // Falling through to stop is fine; the recording path also works.
+          }
+        }
         setInterim("");
         setState((current) => (current === "listening" ? "idle" : current));
       };
       recognitionRef.current = recognition;
+      wantListeningRef.current = true;
       try {
         recognition.start();
         setState("listening");
         return;
       } catch {
         // Fall through to recording.
+        wantListeningRef.current = false;
       }
     }
 
@@ -190,6 +214,7 @@ export function useVoiceInput(onText: (text: string) => void): VoiceInput {
   }, [finaliseRecording]);
 
   const stop = useCallback(() => {
+    wantListeningRef.current = false;
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();

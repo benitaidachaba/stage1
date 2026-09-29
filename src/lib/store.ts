@@ -1,5 +1,5 @@
 import type { Action, AppState, Settings, Task, TaskEvent, UndoSnapshot } from "./types";
-import { UNDO_STACK_LIMIT, makeStep, makeTask } from "./defaults";
+import { UNDO_STACK_LIMIT, makeNote, makeStep, makeTask } from "./defaults";
 import { newId } from "./ids";
 import { parseCapture } from "./parse";
 import { firstFireAt, recordInteraction, snoozeReminder, stopReminder } from "./escalation";
@@ -137,6 +137,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       at,
       tasks: prev.tasks,
       areas: prev.areas,
+      notes: prev.notes,
       settings: prev.settings,
       focusSession: prev.focusSession,
     };
@@ -169,11 +170,15 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       // An empty submit is not an error and not a task: nothing was captured, nothing lost.
       if (text.length === 0) break;
       const parsed = parseCapture(text, now);
+      // An explicitly picked date wins over anything parsed out of the words.
+      const dueAt = action.input.dueAt !== undefined ? action.input.dueAt : parsed.dueAt;
+      const description = action.input.note?.trim() ?? "";
       const fresh = makeTask(
         {
           id: newId("tsk"),
           title: parsed.title,
-          dueAt: parsed.dueAt,
+          dueAt,
+          note: description,
           estimateMinutes: parsed.estimateMinutes,
           energy: parsed.energy,
           tags: parsed.tags,
@@ -193,6 +198,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           matches: parsed.matched.join(", ") || null,
           estimateMinutes: task.estimateMinutes,
           source: task.source,
+          capturedAt: at,
         },
       );
       if (task.reminder.nextFireAt) {
@@ -670,6 +676,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         ...state,
         tasks: last.tasks,
         areas: last.areas,
+        notes: last.notes,
         settings: last.settings,
         focusSession: last.focusSession,
         undoStack: prev.undoStack.slice(0, -1),
@@ -1055,6 +1062,53 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         ),
       };
       log("area.removed", null, `Removed the area “${before.name}”. Its tasks are unchanged.`);
+      break;
+    }
+
+    case "note.create": {
+      const title = action.title.trim();
+      const body = action.body.replace(/\s+$/, "");
+      if (body.trim().length === 0 && title.length === 0) break;
+      snapshot("writing a note");
+      const note = makeNote({ id: newId("not"), title, body }, at);
+      log(
+        "note.created",
+        null,
+        title.length > 0 ? `Wrote the note “${title}”.` : "Wrote a note.",
+      );
+      state = { ...state, notes: [note, ...state.notes] };
+      break;
+    }
+
+    case "note.update": {
+      const before = state.notes.find((note) => note.id === action.id) ?? null;
+      if (!before) break;
+      snapshot("changing a note");
+      const title = action.title !== undefined ? action.title.trim() : before.title;
+      const body = action.body !== undefined ? action.body.replace(/\s+$/, "") : before.body;
+      state = {
+        ...state,
+        notes: state.notes.map((note) =>
+          note.id === action.id ? { ...note, title, body, updatedAt: at } : note,
+        ),
+      };
+      log("note.updated", null, title.length > 0 ? `Changed the note “${title}”.` : "Changed a note.");
+      break;
+    }
+
+    case "note.delete": {
+      const before = state.notes.find((note) => note.id === action.id) ?? null;
+      if (!before) break;
+      snapshot("deleting a note");
+      state = {
+        ...state,
+        notes: state.notes.filter((note) => note.id !== action.id),
+      };
+      log(
+        "note.deleted",
+        null,
+        before.title.length > 0 ? `Deleted the note “${before.title}”.` : "Deleted a note.",
+      );
       break;
     }
 

@@ -1269,6 +1269,94 @@ html[data-simplify="true"] .bucket:has(.card) ~ .bucket {
 
 /* ------------------------------------------------------------ desktop -- */
 
+/* --------------------------------------------------- capture additions -- */
+
+.captureMore {
+  flex: 1 1 100%;
+  padding-top: 0.35rem;
+  border-top: 2px dashed var(--line);
+}
+
+.capture--sheet .captureMore .field {
+  min-width: 0;
+}
+
+/* --------------------------------------------------------------- notes -- */
+
+.noteComposer {
+  gap: 0.7rem;
+}
+
+.noteOpen {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0;
+  width: 100%;
+}
+
+.noteTitle {
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.noteBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- planner -- */
+
+.plannerDays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.plannerDayHead {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+}
+
+/* --------------------------------------------------------- six/seven tabs -- */
+
+@media (max-width: 47.99rem) {
+  .tabs {
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    min-width: 4.2rem;
+    padding-inline: 0.5rem;
+  }
+}
+
+textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+  resize: vertical;
+}
+
 /*
  * From 48rem the Pocket phone layout relaxes into the centred desktop column:
  * the tab bar returns to the top of the content, the capture bar is inline

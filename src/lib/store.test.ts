@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { Action, AppState } from "./types";
 import { UNDO_STACK_LIMIT, initialState, makeTask } from "./defaults";
 import { reduce } from "./store";
-import { inbox, needsNewHome, nextSuggestion, scheduledTasks, todayTasks } from "./selectors";
+import {
+  inbox,
+  needsNewHome,
+  nextSuggestion,
+  nowWindowTasks,
+  scheduledTasks,
+  todayTasks,
+  triageQueue,
+} from "./selectors";
 import { LADDER_MAX_STEP } from "./escalation";
 
 /**
@@ -536,6 +544,7 @@ describe("app level", () => {
       version: 2 as const,
       tasks: [makeTask({ id: "tsk_saved", title: "Email Sam", dueAt: at(120).toISOString() }, NOW.toISOString())],
       areas: [],
+      notes: [],
       events: [
         {
           id: "evt_saved",
@@ -562,6 +571,7 @@ describe("app level", () => {
       version: 2 as const,
       tasks: [makeTask({ id: "tsk_saved", title: "Email Sam" }, NOW.toISOString())],
       areas: [],
+      notes: [],
       events: [],
       settings: initialState().settings,
     };
@@ -637,5 +647,93 @@ describe("the daily reset card stack", () => {
 
     const undone = reduce(off, { type: "undo" }, at(2));
     expect(undone.settings.display.lowEnergyMode).toBe(true);
+  });
+});
+
+describe("capture with a picked date and details", () => {
+  it("lets an explicitly picked due date win over the words", () => {
+    const picked = at(90).toISOString();
+    const state = reduce(base(), {
+      type: "capture",
+      input: { text: "Call the bank tomorrow at 9am", dueAt: picked },
+    }, NOW);
+    expect(state.tasks[0].dueAt).toBe(picked);
+    expect(state.tasks[0].title).toContain("Call the bank");
+  });
+
+  it("keeps the entered moment as the start of the task's record", () => {
+    const state = reduce(base(), { type: "capture", input: { text: "Something for later" } }, NOW);
+    expect(state.tasks[0].createdAt).toBe(NOW.toISOString());
+    expect(lastEvent(state).meta?.capturedAt).toBe(NOW.toISOString());
+  });
+
+  it("stores the details field as the task's note", () => {
+    const state = reduce(base(), {
+      type: "capture",
+      input: { text: "Reply to Dr. Leke", note: "waiting on his screenshot" },
+    }, NOW);
+    expect(state.tasks[0].note).toBe("waiting on his screenshot");
+  });
+});
+
+describe("free-form notes", () => {
+  it("creates, changes and deletes notes, and logs each step", () => {
+    const created = reduce(base(), { type: "note.create", title: "Ideas", body: "One day maybe" }, NOW);
+    const id = created.notes[0].id;
+    expect(created.notes[0].title).toBe("Ideas");
+    expect(lastEvent(created).type).toBe("note.created");
+
+    const updated = reduce(created, { type: "note.update", id, body: "One day soon" }, at(1));
+    expect(updated.notes[0].body).toBe("One day soon");
+    expect(updated.notes[0].updatedAt).toBe(at(1).toISOString());
+    expect(lastEvent(updated).type).toBe("note.updated");
+
+    const undone = reduce(updated, { type: "undo" }, at(2));
+    expect(undone.notes[0].body).toBe("One day maybe");
+
+    const deleted = reduce(updated, { type: "note.delete", id }, at(3));
+    expect(deleted.notes).toHaveLength(0);
+    expect(lastEvent(deleted).type).toBe("note.deleted");
+  });
+
+  it("does not create an empty note", () => {
+    const state = reduce(base(), { type: "note.create", title: "   ", body: "  " }, NOW);
+    expect(state.notes).toHaveLength(0);
+  });
+});
+
+describe("the now window and the full triage queue", () => {
+  it("offers only tasks due within ten minutes for the now view", () => {
+    const start = reduce(base(), {
+      type: "capture",
+      input: { text: "Very soon", dueAt: at(5).toISOString() },
+    }, NOW);
+    const soon = start.tasks[0].id;
+
+    let state = reduce(start, { type: "triage", id: soon, status: "today" }, at(1));
+    const laterTask = reduce(state, {
+      type: "capture",
+      input: { text: "Not yet", dueAt: at(120).toISOString() },
+    }, at(2));
+    const laterId = laterTask.tasks[1].id;
+    state = reduce(laterTask, { type: "triage", id: laterId, status: "today" }, at(3));
+
+    const window = nowWindowTasks(state, at(4));
+    expect(window.map((task) => task.id)).toContain(soon);
+    expect(window.map((task) => task.id)).not.toContain(laterId);
+  });
+
+  it("puts every active task in the triage queue, whatever its state", () => {
+    const start = reduce(base(), { type: "capture", input: { text: "One" } }, NOW);
+    const one = start.tasks[0].id;
+    let state = reduce(start, { type: "triage", id: one, status: "today" }, at(1));
+    state = reduce(state, { type: "capture", input: { text: "Two" } }, at(2));
+    state = reduce(state, { type: "start", id: one }, at(3));
+
+    const queue = triageQueue(state);
+    const statuses = queue.map((task) => task.status);
+    expect(statuses).toContain("inbox");
+    expect(statuses).toContain("now");
+    expect(queue).toHaveLength(2);
   });
 });

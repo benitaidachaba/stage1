@@ -1,5 +1,6 @@
-import type { AppState, Task, TaskEvent } from "./types";
-import { startOfDay, toDate } from "./format";
+import type { AppState, Note, Task, TaskEvent } from "./types";
+import { NOW_WINDOW_MINUTES } from "./defaults";
+import { addDays, endOfDay, startOfDay, toDate } from "./format";
 
 /**
  * Queries over the state. Nothing here mutates anything; every function takes
@@ -48,6 +49,110 @@ export function resolvedTasks(state: AppState): Task[] {
 /** The task currently in the Now view, if any. */
 export function nowTask(state: AppState): Task | null {
   return state.tasks.find((task) => task.status === "now" && !task.archived) ?? null;
+}
+
+/** Live notes, newest change first. Archived ones stay in the log's past. */
+export function activeNotes(state: AppState): Note[] {
+  return state.notes
+    .filter((note) => !note.archived)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+/**
+ * The Now window: tasks due within the next ten minutes. The Now view is for
+ * the genuinely imminent — the app asks nothing else of it.
+ */
+export function nowWindowTasks(state: AppState, now: Date): Task[] {
+  const until = now.getTime() + NOW_WINDOW_MINUTES * 60_000;
+  return state.tasks
+    .filter((task) => {
+      if (task.archived) return false;
+      if (task.status === "done" || task.status === "dropped") return false;
+      if (task.status === "now") return true;
+      const due = toDate(task.dueAt);
+      return due !== null && due.getTime() <= until;
+    })
+    .sort((a, b) => (a.dueAt ?? "").localeCompare(b.dueAt ?? ""));
+}
+
+/**
+ * The Triage queue: every active task — inbox, today, scheduled, even the one
+ * in progress. Triage is re-deciding, and every task stays decidable.
+ */
+export function triageQueue(state: AppState): Task[] {
+  const rank: Record<string, number> = { inbox: 0, now: 1, today: 2, scheduled: 3 };
+  return state.tasks
+    .filter(
+      (task) =>
+        !task.archived &&
+        (task.status === "inbox" || task.status === "today" || task.status === "scheduled" || task.status === "now"),
+    )
+    .sort((a, b) => {
+      const rankDiff = (rank[a.status] ?? 9) - (rank[b.status] ?? 9);
+      if (rankDiff !== 0) return rankDiff;
+      return (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999");
+    });
+}
+
+/**
+ * The planner: scheduled tasks grouped by horizon. Week is the next seven
+ * days by day; month is the calendar month; later is beyond.
+ */
+export interface PlannerGroup {
+  label: string;
+  hint: string;
+  /** For the week group, the day heading each card sits under. */
+  days: Array<{ label: string; tasks: Task[] }>;
+  tasks: Task[];
+}
+
+export function plannerGroups(state: AppState, now: Date): { week: PlannerGroup; month: PlannerGroup; later: PlannerGroup } {
+  const weekEnd = endOfDay(addDays(now, 6));
+  const monthEnd = endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+
+  const scheduled = state.tasks.filter(
+    (task) => task.status === "scheduled" && !task.archived && toDate(task.dueAt) !== null,
+  );
+
+  const inWeek = scheduled.filter((task) => {
+    const due = toDate(task.dueAt);
+    return due !== null && due.getTime() <= weekEnd.getTime();
+  });
+  const inMonth = scheduled.filter((task) => {
+    const due = toDate(task.dueAt);
+    return due !== null && due.getTime() > weekEnd.getTime() && due.getTime() <= monthEnd.getTime();
+  });
+  const beyond = scheduled.filter((task) => {
+    const due = toDate(task.dueAt);
+    return due !== null && due.getTime() > monthEnd.getTime();
+  });
+
+  const byDue = (a: Task, b: Task) => (a.dueAt ?? "").localeCompare(b.dueAt ?? "");
+
+  const days: PlannerGroup["days"] = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = addDays(now, offset);
+    const dayTasks = inWeek.filter((task) => {
+      const due = toDate(task.dueAt);
+      return due !== null && due.getTime() >= startOfDay(day).getTime() && due.getTime() <= endOfDay(day).getTime();
+    });
+    days.push({
+      label: day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }),
+      tasks: dayTasks.sort(byDue),
+    });
+  }
+
+  const monthName = now.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return {
+    week: { label: "This week", hint: "The next seven days, day by day.", days, tasks: inWeek.sort(byDue) },
+    month: {
+      label: monthName,
+      hint: "Everything dated this month, soonest first.",
+      days: [],
+      tasks: inMonth.sort(byDue),
+    },
+    later: { label: "Later", hint: "Dated beyond this month. Nothing is forgotten.", days: [], tasks: beyond.sort(byDue) },
+  };
 }
 
 /**

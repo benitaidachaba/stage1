@@ -1,4 +1,4 @@
-import type { Area, PersistedState, Reminder, Settings, Task, TaskEvent, TaskStatus } from "./types";
+import type { Area, Note, PersistedState, Reminder, Settings, Task, TaskEvent, TaskStatus } from "./types";
 import {
   SCHEMA_VERSION,
   STORAGE_KEY,
@@ -7,6 +7,7 @@ import {
   emptyPersistedState,
   emptyReminder,
   makeArea,
+  makeNote,
   makeStep,
   makeTask,
 } from "./defaults";
@@ -165,6 +166,25 @@ export function coerceTask(raw: unknown, now: string): Task | null {
   return task;
 }
 
+function coerceNote(raw: unknown, now: string): Note | null {
+  if (!isRecord(raw)) return null;
+  const body = str(raw.body);
+  const title = str(raw.title).trim();
+  if (body.trim().length === 0 && title.length === 0) return null;
+  const createdAt = isoOrNull(raw.createdAt) ?? now;
+  return makeNote(
+    {
+      id: strOrNull(raw.id) ?? undefined,
+      title,
+      body,
+      createdAt,
+      updatedAt: isoOrNull(raw.updatedAt) ?? createdAt,
+      archived: bool(raw.archived, false),
+    },
+    createdAt,
+  );
+}
+
 function coerceArea(raw: unknown, now: string): Area | null {
   if (!isRecord(raw)) return null;
   const name = str(raw.name).trim();
@@ -284,6 +304,12 @@ export function coerceState(raw: unknown, now: Date = new Date()): PersistedStat
         return area ? [area] : [];
       })
     : [];
+  const notes = Array.isArray(raw.notes)
+    ? raw.notes.flatMap((entry) => {
+        const note = coerceNote(entry, stamp);
+        return note ? [note] : [];
+      })
+    : [];
   const events = Array.isArray(raw.events)
     ? raw.events.flatMap((entry) => {
         const event = coerceEvent(entry);
@@ -294,6 +320,7 @@ export function coerceState(raw: unknown, now: Date = new Date()): PersistedStat
     version: SCHEMA_VERSION,
     tasks,
     areas,
+    notes,
     // The log is ordered but never filtered: it is the complete record.
     events: events.sort((a, b) => a.at.localeCompare(b.at)),
     settings: coerceSettings(raw.settings),
@@ -337,6 +364,7 @@ export function saveState(state: PersistedState): string | null {
       version: SCHEMA_VERSION,
       tasks: state.tasks,
       areas: state.areas,
+      notes: state.notes ?? [],
       events: state.events,
       settings: state.settings,
     };
@@ -379,7 +407,7 @@ export function parseImport(
   return { state, warnings };
 }
 
-/** Wipes the tasks and the log while keeping accessibility preferences. */
+/** Wipes tasks, notes and the log while keeping accessibility preferences. */
 export function clearTasks(state: PersistedState): PersistedState {
-  return { ...state, tasks: [], events: [] };
+  return { ...state, tasks: [], notes: [], events: [] };
 }

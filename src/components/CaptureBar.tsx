@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
-import { describeDue, describeMinutes } from "@/lib/format";
+import { describeDue, describeMinutes, toDateTimeLocalValue } from "@/lib/format";
 import { parseCapture } from "@/lib/parse";
 import { useAppStore } from "@/state/AppStore";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -11,15 +11,17 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 /**
  * The capture box.
  *
- * One field, nothing required, saved on entry with a timestamp. The measured
- * gap between focus and save is kept so the five-second promise can be checked.
- * The microphone button speaks into the same field: live recognition where the
- * browser has it, a recording sent for transcription where it does not. What
- * comes back is editable text, never an unsaved mystery.
+ * One text field, nothing required. Date parsing from typed words still works,
+ * and an explicitly picked due date always wins over the words — the device
+ * clock is the only clock. The optional details field carries anything that
+ * does not belong in the title.
  */
-export function CaptureBar() {
+export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
   const { dispatch, now } = useAppStore();
   const [text, setText] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [dueValue, setDueValue] = useState("");
+  const [moreOpen, setMoreOpen] = useState(false);
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceRef = useRef<"typed" | "voice">("typed");
@@ -41,10 +43,8 @@ export function CaptureBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // C5: the bookmarklet and share links arrive as /?capture=<text>. The text is
+  // C5: bookmarklet and share links arrive as /?capture=<text>. The text is
   // placed in the field, never saved unseen — capture always stays reviewable.
-  // This runs once on mount; setting the field here is the whole point, and the
-  // alternative (lazy state init) cannot read the URL during hydration safely.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -62,15 +62,7 @@ export function CaptureBar() {
 
   const trimmed = text.trim();
   const preview = trimmed.length > 0 ? parseCapture(trimmed, now) : null;
-  const previewParts = preview
-    ? [
-        preview.title,
-        preview.dueAt ? describeDue(preview.dueAt, now) : null,
-        preview.estimateMinutes !== null ? describeMinutes(preview.estimateMinutes) : null,
-        preview.energy ? `${preview.energy} energy` : null,
-        ...preview.tags.map((tag) => `#${tag}`),
-      ].filter((part): part is string => part !== null)
-    : [];
+  const dueAt = dueValue.length > 0 ? new Date(dueValue).toISOString() : null;
 
   function save() {
     if (trimmed.length === 0) return;
@@ -78,11 +70,17 @@ export function CaptureBar() {
       type: "capture",
       input: {
         text: trimmed,
-        durationMs: focusedAt === null ? undefined : Math.round(Date.now() - focusedAt),
+        // Measured against the store's clock, which reads the device time.
+        durationMs: focusedAt === null ? undefined : Math.max(Math.round(now.getTime() - focusedAt), 0),
         source: sourceRef.current,
+        dueAt,
+        note: noteText.trim().length > 0 ? noteText.trim() : undefined,
       },
     });
     setText("");
+    setNoteText("");
+    setDueValue("");
+    setMoreOpen(false);
     setFocusedAt(null);
     sourceRef.current = "typed";
     // Ready for the next thought without another click.
@@ -93,7 +91,7 @@ export function CaptureBar() {
 
   return (
     <form
-      className="capture"
+      className={`capture${sheet ? " capture--sheet" : ""}`}
       onSubmit={(event) => {
         event.preventDefault();
         save();
@@ -108,7 +106,7 @@ export function CaptureBar() {
           value={text}
           placeholder={UI.capturePlaceholder}
           autoComplete="off"
-          onFocus={() => setFocusedAt(Date.now())}
+          onFocus={() => setFocusedAt(now.getTime())}
           onChange={(event) => {
             sourceRef.current = "typed";
             setText(event.target.value);
@@ -146,6 +144,43 @@ export function CaptureBar() {
         {ACTIONS.save}
       </button>
 
+      <button
+        type="button"
+        className="btn btn--quiet"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((open) => !open)}
+      >
+        {dueValue.length > 0 || noteText.trim().length > 0
+          ? ACTIONS.captureDetailsSet
+          : ACTIONS.captureDetails}
+      </button>
+
+      {moreOpen ? (
+        <div className="row row--wrap captureMore">
+          <label className="field">
+            <span>{UI.captureDue}</span>
+            <input
+              type="datetime-local"
+              value={dueValue}
+              onChange={(event) => setDueValue(event.target.value)}
+            />
+          </label>
+          <label className="field field--grow">
+            <span>{UI.captureNote}</span>
+            <input
+              type="text"
+              value={noteText}
+              placeholder={UI.captureNotePlaceholder}
+              onChange={(event) => setNoteText(event.target.value)}
+            />
+          </label>
+        </div>
+      ) : null}
+
+      {dueValue.length > 0 ? (
+        <p className="hint">{UI.dueChosen(describeDue(dueAt, now))}</p>
+      ) : null}
+
       <p className="hint" role="status">
         {voice.error
           ? voice.error
@@ -153,10 +188,31 @@ export function CaptureBar() {
             ? `${UI.captureListening} ${voice.interim}`
             : voice.state === "transcribing"
               ? UI.captureTranscribing
-              : previewParts.length > 0
-                ? UI.capturePreview(previewParts.join(" · "))
-                : UI.captureHint}
+              : previewParts(preview, dueValue, now)
+      }
       </p>
     </form>
   );
+}
+
+function previewParts(
+  preview: ReturnType<typeof parseCapture> | null,
+  dueValue: string,
+  now: Date,
+): string {
+  if (dueValue.length > 0) {
+    const picked = new Date(dueValue);
+    const rest = preview?.title ?? "";
+    return UI.dueChosen(`${describeDue(picked.toISOString(), now)} — ${rest}`.trim());
+  }
+  if (!preview) return UI.captureHint;
+  const parts = [
+    preview.title,
+    preview.dueAt ? describeDue(preview.dueAt, now) : null,
+    preview.estimateMinutes !== null ? describeMinutes(preview.estimateMinutes) : null,
+    preview.energy ? `${preview.energy} energy` : null,
+    ...preview.tags.map((tag) => `#${tag}`),
+  ].filter((part): part is string => part !== null);
+  if (parts.length === 0) return UI.captureHint;
+  return UI.capturePreview(parts.join(" · "));
 }

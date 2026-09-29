@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppIcons, AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, TRIAGE, UI } from "@/lib/copy";
-import { inbox } from "@/lib/selectors";
-import { describeMinutes } from "@/lib/format";
+import { triageQueue } from "@/lib/selectors";
+import { describeDue, describeMinutes } from "@/lib/format";
 import { useAppStore } from "@/state/AppStore";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { Area, AreaIcon, Task } from "@/lib/types";
@@ -24,8 +24,8 @@ const SWIPE_THRESHOLD = 90;
 type Drag = { startX: number; startY: number; dx: number; dy: number } | null;
 
 export function TriageStack() {
-  const { state, dispatch, undo, undoOffer } = useAppStore();
-  const cards = inbox(state);
+  const { state, dispatch, undo, undoOffer, now } = useAppStore();
+  const cards = triageQueue(state);
   const [laterOpen, setLaterOpen] = useState(false);
   const [drag, setDrag] = useState<Drag>(null);
   const [exiting, setExiting] = useState<"right" | "left" | "up" | null>(null);
@@ -125,7 +125,7 @@ export function TriageStack() {
         <h2>{TRIAGE.heading}</h2>
         <p className="hint">{TRIAGE.progress(cards.length === 0 ? 0 : 1, cards.length)}</p>
       </div>
-      <p className="hint">{TRIAGE.intro}</p>
+      <p className="hint">{TRIAGE.intro} {UI.triageAllHint}</p>
 
       <div
         ref={cardRef}
@@ -143,7 +143,7 @@ export function TriageStack() {
         </p>
         <h3 className="triageTitle">{current.title}</h3>
         <p className="meta">
-          {current.dueAt ? <span>{new Date(current.dueAt).toLocaleString()}</span> : null}
+          {current.dueAt ? <span>{describeDue(current.dueAt, now)}</span> : null}
           {current.estimateMinutes !== null ? <span>{describeMinutes(current.estimateMinutes)}</span> : null}
           {current.energy ? <span>{current.energy} energy</span> : null}
           {current.source === "voice" ? <span>from a voice note</span> : null}

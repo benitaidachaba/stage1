@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
-import { nextSuggestion, nowTask } from "@/lib/selectors";
+import { NOW_WINDOW_MINUTES } from "@/lib/defaults";
+import { describeDue, describeMinutes } from "@/lib/format";
+import { nextSuggestion, nowTask, nowWindowTasks } from "@/lib/selectors";
 import { useAppStore } from "@/state/AppStore";
 import { useSpeech } from "@/hooks/useSpeech";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
@@ -45,6 +47,7 @@ export function NowView() {
   const noteVoice = useVoiceInput((spoken) => setNoteText((current) => `${current} ${spoken}`.trim()));
 
   const suggestion = nextSuggestion(state, task?.id ?? null);
+  const dueSoon = nowWindowTasks(state, now).filter((entry) => entry.id !== task?.id);
   const assistantAllowed = state.settings.display.assistantEnabled && state.settings.consent.assistantProcessing;
 
   // Read the task aloud when it opens, if asked to.
@@ -87,6 +90,41 @@ export function NowView() {
     return (
       <section className="panel nowEmpty" aria-label={UI.nav.now}>
         <p className="hint">Nothing is in progress. One thing at a time is the whole idea.</p>
+        {dueSoon.length > 0 ? (
+          <>
+            <p className="hint">{UI.nowWindowHint(NOW_WINDOW_MINUTES)}</p>
+            <ul className="cards">
+              {dueSoon.map((entry) => (
+                <li key={entry.id} className="card">
+                  <div className="cardHead">
+                    <h3 className="cardTitle">{entry.title}</h3>
+                    <span className="statusChip">
+                      <span
+                        className="statusDot"
+                        aria-hidden="true"
+                        style={{ background: "var(--status-now)" }}
+                      />
+                      {entry.dueAt ? describeDue(entry.dueAt, now) : UI.dueLabel}
+                    </span>
+                  </div>
+                  {entry.note ? <p className="hint">{entry.note}</p> : null}
+                  <div className="row row--wrap">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={() => dispatch({ type: "start", id: entry.id })}
+                    >
+                      <AppIcons.start size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
+                      {ACTIONS.start}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="hint">{UI.nowEmptyWindow}</p>
+        )}
         {suggestion ? (
           <div className="row row--wrap">
             <span>
@@ -95,16 +133,14 @@ export function NowView() {
             </span>
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn"
               onClick={() => dispatch({ type: "start", id: suggestion.id })}
             >
               <AppIcons.start size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
               {ACTIONS.start}
             </button>
           </div>
-        ) : (
-          <p className="hint">Nothing is waiting. Capture a thought above to begin.</p>
-        )}
+        ) : null}
       </section>
     );
   }
@@ -158,6 +194,12 @@ export function NowView() {
       ) : null}
 
       <h2 className="nowTitle">{task.title}</h2>
+      {task.dueAt ? (
+        <p className="hint">
+          {UI.dueLabel} {describeDue(task.dueAt, now)}
+          {task.estimateMinutes !== null ? ` · ${describeMinutes(task.estimateMinutes)}` : ""}
+        </p>
+      ) : null}
       {task.note ? <p className="hint">{task.note}</p> : null}
 
       <div className="row row--wrap">

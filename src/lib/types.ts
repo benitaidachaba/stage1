@@ -108,6 +108,9 @@ export type EventType =
   | "step.rejected"
   | "assistant.proposal"
   | "note.stopped-here"
+  | "note.created"
+  | "note.updated"
+  | "note.deleted"
   | "reminder.scheduled"
   | "reminder.fired"
   | "reminder.escalated"
@@ -155,6 +158,23 @@ export interface Share {
   status: "pending" | "active" | "revoked";
   createdAt: string;
   revokedAt: string | null;
+}
+
+// ------------------------------------------------------------------- notes --
+
+/**
+ * A free-form note, separate from tasks. Not everything written down is a
+ * thing to do; this is where thinking lives.
+ */
+export interface Note {
+  id: string;
+  /** Optional title; the body is the point. */
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Soft delete only, matching tasks. */
+  archived: boolean;
 }
 
 // ------------------------------------------------------------------- tasks --
@@ -311,6 +331,7 @@ export interface PersistedState {
   version: number;
   tasks: Task[];
   areas: Area[];
+  notes: Note[];
   events: TaskEvent[];
   settings: Settings;
 }
@@ -321,6 +342,7 @@ export interface UndoSnapshot {
   at: string;
   tasks: Task[];
   areas: Area[];
+  notes: Note[];
   settings: Settings;
   focusSession: FocusSession | null;
 }
@@ -340,6 +362,10 @@ export interface CaptureInput {
   /** Milliseconds from the moment the capture field was focused to the save. */
   durationMs?: number;
   source?: TaskSource;
+  /** An explicitly picked due date. When present it wins over parsed text. */
+  dueAt?: string | null;
+  /** An optional description captured alongside the task. */
+  note?: string;
 }
 
 /** Result of parsing natural language out of a capture string. */
@@ -408,6 +434,9 @@ export type Action =
   | { type: "area.update"; id: string; patch: Partial<Omit<Area, "id" | "createdAt">> }
   | { type: "area.remove"; id: string }
   | { type: "assignArea"; id: string; areaId: string | null }
+  | { type: "note.create"; title: string; body: string }
+  | { type: "note.update"; id: string; title?: string; body?: string }
+  | { type: "note.delete"; id: string }
   | { type: "data.imported"; state: PersistedState }
   | { type: "data.exported" }
   | { type: "data.cleared" }

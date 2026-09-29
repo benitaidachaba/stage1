@@ -28,8 +28,11 @@ import { isSameDay } from "@/lib/format";
 import { useReminderLoop, type ReminderLoop } from "./useReminderLoop";
 import type { Action, AppState } from "@/lib/types";
 
-/** How often the visible clock re-reads itself, so "Today" never goes stale. */
-const CLOCK_INTERVAL_MS = 30_000;
+/**
+ * How often the visible clock re-reads itself. One second: the Now window and
+ * the countdown are minute-honest, and the device clock is the only clock.
+ */
+const CLOCK_INTERVAL_MS = 1_000;
 
 /** Writes are batched: a flurry of edits should not mean a flurry of writes. */
 const SAVE_DEBOUNCE_MS = 400;

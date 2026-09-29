@@ -5,8 +5,10 @@ import { AppHeader } from "@/components/AppHeader";
 import { AppIcons, ICON_SIZE } from "@/components/icons";
 import { CaptureBar } from "@/components/CaptureBar";
 import { LogTimeline } from "@/components/LogTimeline";
+import { NotesView } from "@/components/NotesView";
 import { NowView } from "@/components/NowView";
 import { Onboarding } from "@/components/Onboarding";
+import { PlannerView } from "@/components/PlannerView";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { TriageStack } from "@/components/TriageStack";
@@ -16,13 +18,18 @@ import { UI } from "@/lib/copy";
 import { inbox } from "@/lib/selectors";
 import { useAppStore } from "@/state/AppStore";
 
-type Tab = "now" | "today" | "triage" | "log" | "settings";
+type Tab = "now" | "today" | "triage" | "planner" | "notes" | "log" | "settings";
 
-/** Five items, exactly as the brief allows. No sixth. */
+/**
+ * Seven sections: the Pocket five plus Planner (week and month ahead) and
+ * Notes. On phones the bar scrolls sideways rather than shrinking the words.
+ */
 const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
   { key: "now", label: UI.nav.now, icon: "now" },
   { key: "today", label: UI.nav.today, icon: "today" },
   { key: "triage", label: UI.nav.triage, icon: "triage" },
+  { key: "planner", label: UI.plannerHeading, icon: "today" },
+  { key: "notes", label: UI.notesNav, icon: "log" },
   { key: "log", label: UI.nav.log, icon: "log" },
   { key: "settings", label: UI.nav.settings, icon: "settings" },
 ];
@@ -121,6 +128,8 @@ export default function Home() {
         {tab === "now" ? <NowView /> : null}
         {tab === "today" ? <TodayBoard /> : null}
         {tab === "triage" ? <TriageStack /> : null}
+        {tab === "planner" ? <PlannerView /> : null}
+        {tab === "notes" ? <NotesView /> : null}
         {tab === "log" ? <LogTimeline /> : null}
         {tab === "settings" ? <SettingsPanel /> : null}
       </main>
