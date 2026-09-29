@@ -1,5 +1,15 @@
-import type { Energy, PersistedState, Reminder, Settings, Task, TaskEvent } from "./types";
-import { SCHEMA_VERSION, STORAGE_KEY, defaultSettings, emptyReminder, makeTask } from "./defaults";
+import type { Area, PersistedState, Reminder, Settings, Task, TaskEvent, TaskStatus } from "./types";
+import {
+  SCHEMA_VERSION,
+  STORAGE_KEY,
+  AREA_COLOURS,
+  defaultSettings,
+  emptyPersistedState,
+  emptyReminder,
+  makeArea,
+  makeStep,
+  makeTask,
+} from "./defaults";
 
 /**
  * Storage.
@@ -10,6 +20,10 @@ import { SCHEMA_VERSION, STORAGE_KEY, defaultSettings, emptyReminder, makeTask }
  *  2. Nothing is silently ignored. If writing fails (private mode, full quota)
  *     the caller gets an error string it must show the user, and the app moves
  *     to an in-memory state instead of pretending the save worked.
+ *
+ * Version 1 data (the previous single-bucket model) is migrated, not abandoned:
+ * open tasks arrive in the Inbox, done tasks stay done, and every task keeps
+ * its date, steps and reminder.
  */
 
 export function isBrowser(): boolean {
@@ -48,7 +62,7 @@ function isoOrNull(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function energyOrNull(value: unknown): Energy | null {
+function energyOrNull(value: unknown): "low" | "medium" | "high" | null {
   return value === "low" || value === "medium" || value === "high" ? value : null;
 }
 
@@ -63,7 +77,7 @@ function reminderFrom(raw: unknown): Reminder {
     stepIndex: Math.max(0, Math.min(numOrNull(raw.stepIndex) ?? 0, 3)),
     nextFireAt: isoOrNull(raw.nextFireAt),
     lastChannel:
-      channel === "in-app" || channel === "browser" || channel === "email" || channel === "trusted-person"
+      channel === "in-app" || channel === "browser" || channel === "email" || channel === "telegram"
         ? channel
         : null,
     fireCount: Math.max(0, Math.round(numOrNull(raw.fireCount) ?? 0)),
@@ -72,12 +86,18 @@ function reminderFrom(raw: unknown): Reminder {
   };
 }
 
+const VALID_STATUSES: TaskStatus[] = ["inbox", "today", "scheduled", "now", "done", "rescheduled", "dropped"];
+
+function statusFrom(raw: unknown): TaskStatus {
+  return VALID_STATUSES.includes(raw as TaskStatus) ? (raw as TaskStatus) : "inbox";
+}
+
 /** Repairs one stored task. Returns null only when there is nothing usable at all. */
 export function coerceTask(raw: unknown, now: string): Task | null {
   if (!isRecord(raw)) return null;
   const id = strOrNull(raw.id);
   const createdAt = isoOrNull(raw.createdAt) ?? now;
-  const status = raw.status === "done" || raw.status === "dropped" ? raw.status : "open";
+  const status = statusFrom(raw.status);
   const resolution =
     raw.resolution === "done" || raw.resolution === "rescheduled" || raw.resolution === "dropped"
       ? raw.resolution
@@ -85,30 +105,52 @@ export function coerceTask(raw: unknown, now: string): Task | null {
   const tags = Array.isArray(raw.tags)
     ? raw.tags.filter((tag): tag is string => typeof tag === "string").map((tag) => tag.toLowerCase())
     : [];
-  const microSteps = Array.isArray(raw.microSteps)
-    ? raw.microSteps.flatMap((step) => {
-        if (!isRecord(step)) return [];
-        const text = str(step.text).trim();
-        if (text.length === 0) return [];
-        return [{ id: str(step.id) || `${id ?? "step"}-${text.slice(0, 8)}`, text, done: bool(step.done, false) }];
-      })
-    : [];
+  const rawSteps = Array.isArray(raw.steps)
+    ? raw.steps
+    : // v1 data called them microSteps; the shape is the same.
+      Array.isArray(raw.microSteps)
+      ? raw.microSteps
+      : [];
+  const steps = rawSteps.flatMap((step) => {
+    if (!isRecord(step)) return [];
+    const text = str(step.text).trim();
+    if (text.length === 0) return [];
+    return [
+      makeStep(
+        {
+          id: str(step.id) || `${id ?? "step"}-${text.slice(0, 8)}`,
+          taskId: id ?? "",
+          text,
+          done: bool(step.done, false),
+          source: step.source === "assistant" ? "assistant" : "user",
+        },
+        createdAt,
+      ),
+    ];
+  });
+  const source = raw.source === "voice" || raw.source === "import" ? raw.source : "typed";
 
   const task = makeTask(
     {
       id: id ?? undefined,
       title: str(raw.title),
+      note: str(raw.note) || str(raw.notes),
       status,
       resolution,
       createdAt,
       updatedAt: isoOrNull(raw.updatedAt) ?? createdAt,
       dueAt: isoOrNull(raw.dueAt),
       estimateMinutes: numOrNull(raw.estimateMinutes),
+      actualMinutes: numOrNull(raw.actualMinutes),
+      areaId: strOrNull(raw.areaId),
+      important: bool(raw.important, false),
+      quickWin: bool(raw.quickWin, false),
+      stoppedHereNote: strOrNull(raw.stoppedHereNote),
+      source,
       energy: energyOrNull(raw.energy),
-      nextStep: strOrNull(raw.nextStep),
-      notes: str(raw.notes),
       tags,
-      microSteps,
+      nextStep: strOrNull(raw.nextStep),
+      steps,
       reminder: reminderFrom(raw.reminder),
       rescheduleCount: Math.max(0, Math.round(numOrNull(raw.rescheduleCount) ?? 0)),
       snoozeCount: Math.max(0, Math.round(numOrNull(raw.snoozeCount) ?? 0)),
@@ -121,6 +163,24 @@ export function coerceTask(raw: unknown, now: string): Task | null {
     createdAt,
   );
   return task;
+}
+
+function coerceArea(raw: unknown, now: string): Area | null {
+  if (!isRecord(raw)) return null;
+  const name = str(raw.name).trim();
+  if (name.length === 0) return null;
+  const colour = str(raw.colour);
+  return makeArea(
+    {
+      id: strOrNull(raw.id) ?? undefined,
+      name,
+      colour: /^#[0-9a-f]{3,8}$/i.test(colour) ? colour : AREA_COLOURS[0],
+      icon: (strOrNull(raw.icon) ?? "dot") as Area["icon"],
+      deadline: isoOrNull(raw.deadline),
+      createdAt: isoOrNull(raw.createdAt) ?? now,
+    },
+    now,
+  );
 }
 
 function coerceEvent(raw: unknown): TaskEvent | null {
@@ -150,12 +210,12 @@ function coerceSettings(raw: unknown): Settings {
   const display = isRecord(raw.display) ? raw.display : {};
   const reminders = isRecord(raw.reminders) ? raw.reminders : {};
   const quiet = isRecord(reminders.quietHours) ? reminders.quietHours : {};
-  const ai = isRecord(raw.ai) ? raw.ai : {};
+  const consent = isRecord(raw.consent) ? raw.consent : {};
   const durations = Array.isArray(raw.captureDurationsMs)
     ? raw.captureDurationsMs.filter((value): value is number => typeof value === "number").slice(-200)
     : [];
   const font = display.font;
-  const theme = display.theme;
+  const background = display.background;
   const start = str(quiet.start);
   const end = str(quiet.end);
 
@@ -165,15 +225,21 @@ function coerceSettings(raw: unknown): Settings {
       fontScale: clampNumber(numOrNull(display.fontScale), 1, 2, base.display.fontScale),
       lineHeight: clampNumber(numOrNull(display.lineHeight), 1.2, 2.4, base.display.lineHeight),
       letterSpacing: clampNumber(numOrNull(display.letterSpacing), 0, 0.2, base.display.letterSpacing),
-      font: font === "hyperlegible" || font === "opendyslexic" ? font : "system",
-      contrast: display.contrast === "high" ? "high" : "default",
-      theme: theme === "dusk" ? "dusk" : "light",
+      font: font === "opendyslexic" || font === "system" ? font : "lexend",
+      background:
+        background === "white" || background === "dark" || background === "contrast" ? background : "cream",
       reduceMotion: bool(display.reduceMotion, base.display.reduceMotion),
       simplifyLayout: bool(display.simplifyLayout, base.display.simplifyLayout),
+      assistantEnabled: bool(display.assistantEnabled, base.display.assistantEnabled),
+      speechRate: clampNumber(numOrNull(display.speechRate), 0.5, 2, base.display.speechRate),
+      sounds: bool(display.sounds, base.display.sounds),
       readAloud: bool(display.readAloud, base.display.readAloud),
     },
     reminders: {
       enabled: bool(reminders.enabled, base.reminders.enabled),
+      reminderTime: /^\d{1,2}:\d{2}$/.test(str(reminders.reminderTime))
+        ? str(reminders.reminderTime)
+        : base.reminders.reminderTime,
       leadMinutes: clampNumber(numOrNull(reminders.leadMinutes), 0, 240, base.reminders.leadMinutes),
       maxStep: clampNumber(numOrNull(reminders.maxStep), 0, 3, base.reminders.maxStep),
       quietHours: {
@@ -184,12 +250,15 @@ function coerceSettings(raw: unknown): Settings {
       browserNotifications: bool(reminders.browserNotifications, base.reminders.browserNotifications),
       emailNotifications: bool(reminders.emailNotifications, base.reminders.emailNotifications),
       emailAddress: str(reminders.emailAddress),
-      trustedPerson: bool(reminders.trustedPerson, base.reminders.trustedPerson),
-      trustedPersonName: str(reminders.trustedPersonName),
-      trustedPersonContact: str(reminders.trustedPersonContact),
+      telegram: bool(reminders.telegram, base.reminders.telegram),
+      telegramHandle: str(reminders.telegramHandle),
     },
-    ai: { breakdownEnabled: bool(ai.breakdownEnabled, base.ai.breakdownEnabled) },
     captureDurationsMs: durations,
+    onboarded: bool(raw.onboarded, base.onboarded),
+    consent: {
+      assistantProcessing: bool(consent.assistantProcessing, base.consent.assistantProcessing),
+      voiceRecording: bool(consent.voiceRecording, base.consent.voiceRecording),
+    },
   };
 }
 
@@ -200,12 +269,18 @@ function coerceSettings(raw: unknown): Settings {
 export function coerceState(raw: unknown, now: Date = new Date()): PersistedState {
   const stamp = now.toISOString();
   if (!isRecord(raw)) {
-    return { version: SCHEMA_VERSION, tasks: [], events: [], settings: defaultSettings() };
+    return emptyPersistedState();
   }
   const tasks = Array.isArray(raw.tasks)
     ? raw.tasks.flatMap((entry) => {
         const task = coerceTask(entry, stamp);
         return task ? [task] : [];
+      })
+    : [];
+  const areas = Array.isArray(raw.areas)
+    ? raw.areas.flatMap((entry) => {
+        const area = coerceArea(entry, stamp);
+        return area ? [area] : [];
       })
     : [];
   const events = Array.isArray(raw.events)
@@ -217,6 +292,7 @@ export function coerceState(raw: unknown, now: Date = new Date()): PersistedStat
   return {
     version: SCHEMA_VERSION,
     tasks,
+    areas,
     // The log is ordered but never filtered: it is the complete record.
     events: events.sort((a, b) => a.at.localeCompare(b.at)),
     settings: coerceSettings(raw.settings),
@@ -228,7 +304,17 @@ export function loadState(): { state: PersistedState | null; error: string | nul
   if (!isBrowser()) return { state: null, error: null };
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { state: null, error: null };
+    if (!raw) {
+      // One-time move from the v1 store, so nobody starts from zero.
+      const legacy = window.localStorage.getItem("brainfriendly.tasks.v1");
+      if (legacy) {
+        const migrated = coerceState(JSON.parse(legacy));
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+        window.localStorage.removeItem("brainfriendly.tasks.v1");
+        return { state: migrated, error: null };
+      }
+      return { state: null, error: null };
+    }
     return { state: coerceState(JSON.parse(raw)), error: null };
   } catch (error) {
     // Broken JSON must not take the app down; the caller offers a recovery path.
@@ -249,6 +335,7 @@ export function saveState(state: PersistedState): string | null {
     const payload: PersistedState = {
       version: SCHEMA_VERSION,
       tasks: state.tasks,
+      areas: state.areas,
       events: state.events,
       settings: state.settings,
     };

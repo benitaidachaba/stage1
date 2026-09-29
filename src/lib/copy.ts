@@ -1,50 +1,94 @@
-import type { EventType } from "./types";
+import type { AreaIcon, EventType, TaskStatus } from "./types";
 
 /**
  * Every user-facing string that could carry judgement lives here.
  *
- * The product promise is "never shames you for a missed one", so this file is
- * the single place where that promise is enforced. Note what is absent: the
- * words overdue, late, failed, missed, behind, streak, and any count that only
- * ever grows. Status is always described as a situation to resolve, never as a
- * fault to answer for.
+ * The voice: friendly, plain, never cutesy. Short sentences. No jargon. Note
+ * what is absent: overdue, late, failed, missed, behind, streak, and any count
+ * that only ever grows. Status is always described as a situation to resolve,
+ * never as a fault to answer for.
  */
-
-export const BUCKETS = {
-  now: {
-    label: "Right now",
-    hint: "Small or time-sensitive. One of these is a good place to start.",
-  },
-  today: {
-    label: "Today",
-    hint: "Due before the day ends.",
-  },
-  soon: {
-    label: "Next few days",
-    hint: "Coming up within the week.",
-  },
-  someday: {
-    label: "Someday",
-    hint: "No date yet. That is allowed. Nothing here is waiting on you.",
-  },
-  needsHome: {
-    label: "Waiting for a new date",
-    hint: "The date went by. Give one of these a new home when you have a moment.",
-  },
-} as const;
 
 export function plural(count: number, one: string, many = `${one}s`): string {
   return count === 1 ? one : many;
 }
 
-/** Neutral, count-free phrasing for a pile of tasks awaiting a decision. */
-export function needsDecisionLine(count: number): string {
-  if (count === 0) return "Everything has a home right now.";
-  return `${count} ${plural(count, "task")} waiting for a decision. No rush.`;
-}
+// ----------------------------------------------------------------- status --
+
+/** Short text for every state. Always paired with an icon and a colour dot. */
+export const STATUS: Record<TaskStatus, { label: string; glyph: string }> = {
+  inbox: { label: "Inbox", glyph: "○" },
+  today: { label: "Today", glyph: "●" },
+  scheduled: { label: "Scheduled", glyph: "◐" },
+  now: { label: "Now", glyph: "▶" },
+  done: { label: "Done", glyph: "✓" },
+  rescheduled: { label: "Rescheduled", glyph: "↻" },
+  dropped: { label: "Dropped", glyph: "×" },
+};
+
+// ---------------------------------------------------------------- triage --
+
+export const TRIAGE = {
+  heading: "Triage",
+  intro: "One card at a time. Swipe, or use the buttons. Nothing is required.",
+  empty: "The inbox is clear. Captured thoughts wait here for a quiet moment.",
+  cardHint: "What is this one?",
+  today: "Do today",
+  later: "Later",
+  drop: "Drop",
+  dropConfirm: "Let it go",
+  laterHeading: "When later?",
+  tomorrow: "Tomorrow",
+  thisWeek: "This week",
+  nextWeek: "Next week",
+  noDate: "No date — just someday",
+  areaHeading: "An area for this one? Optional.",
+  backToInbox: "Back to the inbox",
+  progress: (done: number, total: number) => `${done} of ${total} triaged`,
+  countHint: (n: number) =>
+    n === 0 ? "Inbox empty." : `${n} ${plural(n, "card")} waiting. No rush.`,
+} as const;
+
+// ------------------------------------------------------------- daily reset --
+
+export const RESET = {
+  heading: "Daily reset",
+  intro: "A short look at what moved, and what gets a new home. Three minutes, no more.",
+  run: "Do the reset",
+  needsHome: "Needs a new home",
+  needsHomeHint: "The date went by. Tomorrow is a perfectly good answer.",
+  empty: "Nothing needs a new home right now.",
+  finished: "That is everything. The day is set up.",
+} as const;
+
+// ------------------------------------------------------------------- copy --
+
+export const BUCKETS = {
+  today: {
+    label: "Today",
+    hint: "Chosen for today. In any order that suits the energy you have.",
+  },
+  scheduled: {
+    label: "Scheduled",
+    hint: "Given a date. The app will mention them on the day.",
+  },
+  someday: {
+    label: "Someday",
+    hint: "No date yet. That is allowed. Nothing here is waiting on you.",
+  },
+} as const;
+
+export const EMPTY = {
+  tasks: "Nothing captured yet. The box above is the fastest way to start.",
+  today: "Nothing chosen for today. Pick from triage, or just start something.",
+  scheduled: "Nothing scheduled.",
+  someday: "Someday is empty.",
+  log: "The log fills up as you use the app. Snoozes and skips are recorded here too.",
+} as const;
 
 export const TOAST = {
-  captured: (title: string) => `Saved “${title}”.`,
+  captured: (title: string) => `Saved “${title}” to the inbox.`,
+  triaged: (title: string, where: string) => `“${title}” → ${where}.`,
   completed: (title: string) => `Done: “${title}”.`,
   dropped: (title: string) => `Dropped “${title}”. Dropping is a valid decision.`,
   rescheduled: (title: string) => `“${title}” has a new date.`,
@@ -54,27 +98,16 @@ export const TOAST = {
   archived: (title: string) => `“${title}” moved to the archive.`,
   restored: (title: string) => `“${title}” is back.`,
   started: (title: string) => `Started “${title}”.`,
-  reminderStopped: (title: string) => `Nudges for “${title}” are paused.`,
+  stoppedNote: () => `Noted for next time.`,
   undone: (label: string) => `Undone: ${label}.`,
   offerUndo: (label: string) => `Just did: ${label}.`,
-} as const;
-
-export const EMPTY = {
-  tasks: "Nothing captured yet. The box above is the fastest way to start.",
-  now: "Nothing needs you this minute.",
-  today: "Nothing pinned for today.",
-  soon: "The next few days are clear.",
-  someday: "Someday is empty.",
-  needsHome: "No task is waiting for a new date.",
-  log: "The log fills up as you use the app. Snoozes and skips are recorded here too.",
-  focusDone: "No open task to focus on. Capturing one takes a few seconds.",
 } as const;
 
 export const REMINDER_CHANNEL_LABEL = {
   "in-app": "in the app",
   browser: "as a browser notification",
   email: "by email",
-  "trusted-person": "to your chosen person",
+  telegram: "on Telegram",
 } as const;
 
 /** Gentle, specific, non-accusatory nudge text. No exclamation marks, no blame. */
@@ -96,11 +129,8 @@ export function quietHoursLine(start: string, end: string): string {
   return `Held until ${end} because quiet hours run from ${start} to ${end}.`;
 }
 
-/**
- * Every heading, label and button in the app. Same rule as above: a label is
- * never a judgement. "Not right now" instead of "snooze", "Let it go" instead of
- * "delete", and nowhere at all a count that can only go up.
- */
+// -------------------------------------------------------------------- UI --
+
 export const UI = {
   appName: "Small Steps",
   tagline: "Capture in seconds, decide when you have the energy.",
@@ -109,14 +139,14 @@ export const UI = {
   capturePlaceholder: "Email the landlord tomorrow at 4pm, 20 minutes #home",
   captureHint: "Dates, times, lengths and #tags are understood. Enter saves it. ⌘K jumps back here.",
   capturePreview: (summary: string) => `This will be saved as: ${summary}`,
-  tabs: { today: "List", log: "Log", settings: "Settings" },
-  energyLabel: "How much energy do you have right now?",
-  energy: { low: "Not much", medium: "Some", high: "Plenty" },
-  energyAny: "Any",
-  bucketEmpty: "Nothing here.",
-  focusOpen: (title: string) => `Focus view: ${title}`,
-  focusIntro: "One step is enough. Anything else can wait.",
-  focusNoStep: "Add the smallest first step you can imagine.",
+  captureVoice: "Hold to talk",
+  captureListening: "Listening…",
+  captureTranscribing: "Transcribing…",
+  captureVoiceUnavailable: "Voice input is not available in this browser. Typing works the same.",
+  captureSavedOnEntry: "Saved on entry, with a timestamp. Nothing else is asked.",
+  nav: { now: "Now", today: "Today", triage: "Triage", log: "Log", settings: "Settings" },
+  inboxLine: (n: number) =>
+    n === 0 ? "Inbox is clear." : `${n} in the inbox, ready for triage.`,
   logEmpty: EMPTY.log,
   logHeading: "Everything that happened, in order",
   storageNote: "Changes are saved on this device.",
@@ -131,12 +161,17 @@ export const UI = {
   quietNow: (end: string) => `Quiet hours are on until ${end}, so nothing will interrupt you.`,
   notificationReady: "This browser can show a notification.",
   notificationBlocked: "This browser will keep nudges in the app itself.",
+  searchLabel: "Search tasks",
+  searchPlaceholder: "Search — spelling does not have to be exact",
+  searchEmpty: "Nothing matched. Shorter words often find more.",
+  searchHint: "Matches close spellings and sound-alikes.",
 } as const;
 
 export const ACTIONS = {
   save: "Save",
   done: "Done",
-  start: "Start with me",
+  notNow: "Not now",
+  start: "Start",
   later: "Not right now",
   skipToday: "Ask me tomorrow",
   newDate: "New date",
@@ -149,10 +184,19 @@ export const ACTIONS = {
   resumeNudges: "Let the nudges come back",
   addStep: "Add a step",
   stepPlaceholder: "The smallest first move",
-  stillStuck: "Still stuck",
-  leaveFocus: "Leave focus view",
-  saveDate: "Save the date",
-  clearDate: "No date for now",
+  suggestStep: "Suggest a first step",
+  suggestAgain: "Try another suggestion",
+  acceptStep: "Use this step",
+  cantStart: "I can't start",
+  assistantNote: "Only this task's text is sent, to write one small first step. Nothing else is shared.",
+  assistantOff: "The assistant is switched off in settings.",
+  stoppedHere: "Where I stopped",
+  stoppedHerePlaceholder: "One line to your next self",
+  stoppedHereSave: "Save the note",
+  stoppedHerePrompt: "Leaving mid-task? One line to your future self helps the restart:",
+  timerStart: "Start the timer",
+  timerStop: "Stop the timer",
+  openNow: "Put in Now",
   undo: "Undo",
   dismiss: "Dismiss",
   showMore: "Show the rest",
@@ -161,54 +205,85 @@ export const ACTIONS = {
   importBackup: "Load a backup",
   clearEverything: "Clear the tasks and the log",
   allowNotifications: "Allow browser notifications",
+  readAloud: "Read aloud",
+  stopReading: "Stop reading",
+  nextSuggestion: "A reasonable next: ",
 } as const;
 
-/**
- * Everything the settings screen says. Preferences are described as choices the
- * person makes about their own attention, never as performance to improve.
- */
+// -------------------------------------------------------------- settings --
+
 export const SETTINGS = {
   lookHeading: "How it looks",
   fontScale: "Text size",
   lineHeight: "Line spacing",
   letterSpacing: "Letter spacing",
   font: "Typeface",
-  fonts: { system: "System", hyperlegible: "Atkinson Hyperlegible", opendyslexic: "OpenDyslexic" },
-  contrast: "Contrast",
-  contrastOptions: { default: "Standard", high: "High" },
-  theme: "Theme",
-  themes: { light: "Daylight", dusk: "Dusk" },
+  fonts: { lexend: "Lexend", opendyslexic: "OpenDyslexic", system: "System" },
+  background: "Background",
+  backgrounds: { cream: "Cream", white: "White", dark: "Dark", contrast: "High contrast" },
   reduceMotion: "Reduce movement",
   simplifyLayout: "Show one thing at a time",
-  readAloud: "Read a task out loud in focus view",
+  readAloud: "Read tasks out loud",
+  speechRate: "Reading speed",
+  sounds: "Sounds on capture and completion",
+  assistantHeading: "The assistant",
+  assistantEnabled: "Offer a suggested first step when I say I can't start",
+  assistantConsent:
+    "When used, only the task's own text is sent to the assistant, just to write one small first step. Nothing else leaves this device.",
+  speechHeading: "Voice",
   nudgeHeading: "How nudges reach you",
   remindersOn: "Allow nudges at all",
+  reminderTime: "Daily nudging hour",
   lead: "How early a nudge arrives",
   leadValue: (minutes: number) => `${minutes} ${minutes === 1 ? "minute" : "minutes"} before the date`,
   maxStep: "How far a nudge may travel",
+  maxStepValue: (steps: number) => `At most ${steps} nudge${steps === 1 ? "" : "s"} per task`,
   quietOn: "Hold nudges during quiet hours",
   quietStart: "Quiet from",
   quietEnd: "Quiet until",
   browser: "A browser notification",
   email: "An email",
   emailAddress: "Email address",
-  trustedPerson: "A message to someone I trust",
-  trustedPersonName: "Their name",
-  trustedPersonContact: "How to reach them",
+  telegram: "Telegram",
+  telegramHandle: "Telegram handle",
   planHeading: "What you would actually experience",
   planActive: "in use",
   planInactive: "would need switching on",
   planCapped: "beyond your chosen limit",
-  channelsNote: "Email and messages to a person need a service this build does not have, so those steps stay in the app and say so in the log.",
+  channelsNote:
+    "Email and Telegram need a service this build does not have, so those steps stay in the app and say so in the log.",
   progressHeading: "How capture is going",
-  captureTypical: (seconds: string) =>
-    `Typical capture: ${seconds} seconds. The aim was under five.`,
+  captureTypical: (seconds: string) => `Typical capture: ${seconds} seconds. The aim was under five.`,
   captureUnknown: "Typical capture appears after a few tasks.",
-  openNow: (count: number) => `${count} ${plural(count, "task")} open right now.`,
-  decidedToday: (count: number) =>
-    count === 0 ? "Nothing decided yet today, which is allowed." : `${count} decided today.`,
   dataHeading: "Your data",
 } as const;
+
+// -------------------------------------------------------------- onboarding --
+
+export const ONBOARDING = {
+  welcome: "Two minutes of setup, then it stays out of your way.",
+  questionFont: "Which typeface reads easiest?",
+  questionBackground: "Which background is easiest on your eyes?",
+  questionReminder: "What time should daily nudges come?",
+  questionReminderHint: "Quiet hours still apply. You can change all of this later.",
+  finish: "Ready",
+  skip: "Skip setup",
+} as const;
+
+// ------------------------------------------------------------------ areas --
+
+export const AREA_ICONS: Record<AreaIcon, string> = {
+  dot: "•",
+  book: "📖",
+  briefcase: "💼",
+  home: "🏠",
+  heart: "♥",
+  spark: "✦",
+  leaf: "❧",
+  flag: "⚑",
+};
+
+// ------------------------------------------------------------------- log --
 
 /**
  * Short, factual labels for the log. A log entry describes what happened, not
@@ -217,6 +292,7 @@ export const SETTINGS = {
 export const LOG_LABEL: Record<EventType, string> = {
   "task.created": "Captured",
   "task.edited": "Changed",
+  "task.triaged": "Triaged",
   "task.started": "Started",
   "task.completed": "Done",
   "task.reopened": "Back on the list",
@@ -226,8 +302,13 @@ export const LOG_LABEL: Record<EventType, string> = {
   "task.dropped": "Let go",
   "task.archived": "Archived",
   "task.restored": "Restored",
-  "microstep.added": "Step added",
-  "microstep.toggled": "Step checked",
+  "task.moved-back": "Returned to inbox",
+  "step.added": "Step added",
+  "step.toggled": "Step checked",
+  "step.accepted": "Suggestion accepted",
+  "step.rejected": "Suggestion declined",
+  "assistant.proposal": "Suggestion offered",
+  "note.stopped-here": "Note to next self",
   "reminder.scheduled": "Nudge planned",
   "reminder.fired": "Nudge shown",
   "reminder.escalated": "Nudge moved along",
@@ -236,9 +317,12 @@ export const LOG_LABEL: Record<EventType, string> = {
   "reminder.deferred": "Held for quiet hours",
   "reminder.ladder-finished": "Nudges finished",
   "reminder.skipped-delivery": "Stayed in the app",
-  "focus.started": "Focus view opened",
-  "focus.ended": "Focus view left",
-  "focus.stuck": "Asked for a smaller step",
+  "focus.started": "Now view opened",
+  "focus.ended": "Now view left",
+  "reset.completed": "Daily reset done",
+  "area.created": "Area created",
+  "area.edited": "Area changed",
+  "area.removed": "Area removed",
   "data.exported": "Backup exported",
   "data.imported": "Backup loaded",
   "data.cleared": "Cleared",

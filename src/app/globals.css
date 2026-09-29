@@ -1,45 +1,74 @@
 /*
  * One stylesheet, because the settings screen has to reach everything.
  *
- * The reader's preferences are expressed as three custom properties and a handful
- * of data attributes on <html>, set by the store. Every rule below reads those
- * instead of hard-coding a size, so a change in settings is a change everywhere.
+ * The reader's preferences are expressed as three custom properties and a
+ * handful of data attributes on <html>, set by the store. Every rule below reads
+ * those instead of hard-coding a size, so a change in settings is a change
+ * everywhere.
+ *
+ * Brand: modern and minimalist, warm. Generous spacing, typography-led, one
+ * accent colour reserved for callouts. Status is always icon + colour + text,
+ * never colour alone.
  */
 
 :root {
-  --background: #fbfaf7;
+  /* Cream: the warm default. */
+  --background: #faf7f2;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --ink: #23211f;
-  --ink-soft: #5f5a54;
-  --line: #e2ded6;
-  --accent: #3f6f5f;
+  --ink: #26221d;
+  --ink-soft: #6b645b;
+  --line: #e6e0d6;
+  --accent: #2f6d5a;
   --accent-ink: #ffffff;
   --focus-ring: #1a6bff;
-  --shadow: 0 1px 2px rgb(20 18 16 / 8%), 0 8px 24px rgb(20 18 16 / 6%);
+
+  /* Status colours. Each is always paired with a glyph and a word. */
+  --status-inbox: #6b645b;
+  --status-today: #2f6d5a;
+  --status-scheduled: #4a6d8c;
+  --status-now: #a2703a;
+  --status-done: #5d7d43;
+  --status-rescheduled: #8a5a83;
+  --status-dropped: #8c8478;
 
   /* Written over by the store; these are the accessible starting values. */
   --font-scale: 1.15;
   --line-height: 1.6;
   --letter-spacing: 0.01em;
-  --space: 1rem;
+  --space: 1.1rem;
   --radius: 14px;
 }
 
-html[data-theme="dusk"] {
-  --background: #17161a;
-  --surface: #1f1e24;
+html[data-background="white"] {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-raised: #f7f7f8;
+  --ink: #1c1c1e;
+  --ink-soft: #5f5f66;
+  --line: #e3e3e8;
+}
+
+html[data-background="dark"] {
+  --background: #141317;
+  --surface: #1d1c22;
   --surface-raised: #26252c;
   --ink: #ece9e4;
   --ink-soft: #a9a4a0;
-  --line: #35333c;
+  --line: #37353e;
   --accent: #8fc0ad;
   --accent-ink: #12160f;
   --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 28px rgb(0 0 0 / 35%);
+  --status-inbox: #a9a4a0;
+  --status-today: #8fc0ad;
+  --status-scheduled: #9ab8d6;
+  --status-now: #d8a86e;
+  --status-done: #a8c98a;
+  --status-rescheduled: #c9a3c4;
+  --status-dropped: #8c8478;
 }
 
-/* High contrast drops the soft greys entirely: nothing relies on shade alone. */
-html[data-contrast="high"] {
+html[data-background="contrast"] {
   --background: #ffffff;
   --surface: #ffffff;
   --surface-raised: #ffffff;
@@ -49,32 +78,31 @@ html[data-contrast="high"] {
   --accent: #00432e;
   --accent-ink: #ffffff;
   --shadow: none;
+  --status-inbox: #1c1c1c;
+  --status-today: #00432e;
+  --status-scheduled: #00304f;
+  --status-now: #5c3200;
+  --status-done: #26520f;
+  --status-rescheduled: #4d1244;
+  --status-dropped: #333333;
 }
 
-html[data-contrast="high"][data-theme="dusk"] {
-  --background: #000000;
-  --surface: #000000;
-  --surface-raised: #0d0d0d;
-  --ink: #ffffff;
-  --ink-soft: #f0f0f0;
-  --line: #ffffff;
-  --accent: #7cf0c8;
-  --accent-ink: #000000;
-}
-
-html[data-font="hyperlegible"] {
-  --font-stack: "Atkinson Hyperlegible", "Atkinson Hyperlegible Fallback", Verdana,
-    Geneva, sans-serif;
+html[data-font="lexend"] {
+  --font-stack: var(--font-lexend), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
 }
 
 html[data-font="opendyslexic"] {
   --font-stack: "OpenDyslexic", "Comic Sans MS", Verdana, sans-serif;
 }
 
-html[data-font="system"],
-:root {
+html[data-font="system"] {
   --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
+}
+
+:root {
+  --shadow: 0 1px 2px rgb(20 18 16 / 8%), 0 8px 24px rgb(20 18 16 / 6%);
 }
 
 * {
@@ -145,7 +173,7 @@ h1,
 h2,
 h3 {
   line-height: 1.25;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: calc(var(--letter-spacing) * 0.5);
 }
 
@@ -153,9 +181,9 @@ h3 {
 
 .shell {
   width: 100%;
-  max-width: 62rem;
+  max-width: 60rem;
   margin: 0 auto;
-  padding: calc(var(--space) * 1.25) var(--space) calc(var(--space) * 4);
+  padding: calc(var(--space) * 1.5) var(--space) calc(var(--space) * 4);
   display: flex;
   flex-direction: column;
   gap: calc(var(--space) * 1.25);
@@ -168,7 +196,8 @@ h3 {
 }
 
 .wordmark {
-  font-size: 1.6rem;
+  font-size: 1.55rem;
+  font-weight: 650;
 }
 
 .content {
@@ -188,13 +217,15 @@ h3 {
 .tab {
   font: inherit;
   font-weight: 600;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.1rem;
   border: 2px solid transparent;
   border-radius: 999px;
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
-  min-height: 44px;
+  /* The brief's floor for tap targets. */
+  min-height: 48px;
+  min-width: 48px;
 }
 
 .tab:hover {
@@ -205,6 +236,19 @@ h3 {
 .tab--on {
   background: var(--ink);
   color: var(--background);
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  margin-left: 0.4rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.85rem;
 }
 
 .storageWarning {
@@ -257,7 +301,7 @@ h3 {
 input[type="text"],
 input[type="email"],
 input[type="time"],
-input[type="datetime-local"],
+input[type="search"],
 input[type="file"],
 select,
 textarea {
@@ -267,7 +311,7 @@ textarea {
   border: 2px solid var(--line);
   border-radius: 10px;
   padding: 0.55rem 0.7rem;
-  min-height: 44px;
+  min-height: 48px;
   width: 100%;
 }
 
@@ -288,12 +332,13 @@ select:disabled {
   align-items: flex-start;
   gap: 0.55rem;
   cursor: pointer;
+  min-height: 48px;
+  align-items: center;
 }
 
 .check input[type="checkbox"] {
   width: 1.35rem;
   height: 1.35rem;
-  margin-top: 0.15rem;
   accent-color: var(--accent);
   flex: none;
 }
@@ -305,8 +350,9 @@ select:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  min-height: 44px;
-  padding: 0.5rem 0.95rem;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0.55rem 1rem;
   border: 2px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
@@ -319,6 +365,7 @@ select:disabled {
   border-color: var(--ink);
 }
 
+/* The accent is reserved: primary actions and nothing else. */
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -339,6 +386,16 @@ select:disabled {
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.btn--mic {
+  padding-inline: 0.8rem;
+}
+
+.btn--mic-on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .linkish {
@@ -368,13 +425,42 @@ select:disabled {
 .chip--button {
   background: var(--surface);
   cursor: pointer;
-  min-height: 40px;
+  min-height: 48px;
 }
 
 .chip--on {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--background);
+}
+
+.areaDot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.statusGlyph {
+  font-size: 0.9rem;
+}
+
+.statusDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  display: inline-block;
+  border: 1px solid var(--line);
 }
 
 .panel {
@@ -399,7 +485,6 @@ select:disabled {
   font-size: 1.1rem;
 }
 
-
 /* -------------------------------------------------------------- capture -- */
 
 .capture {
@@ -414,10 +499,6 @@ select:disabled {
   box-shadow: var(--shadow);
 }
 
-.capture .btn {
-  margin-bottom: 0.1rem;
-}
-
 .captureInput {
   font-size: 1.05rem;
 }
@@ -428,35 +509,30 @@ select:disabled {
 
 /* ---------------------------------------------------------------- board -- */
 
-.board,
-.log,
-.plan {
-  list-style: none;
-}
-
 .board {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space) * 1.25);
 }
 
-.energy {
+.resetCallout {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  font-weight: 600;
+  gap: 0.6rem;
+  padding: var(--space);
+  border-left: 4px solid var(--accent);
+  background: var(--surface-raised);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
-.summary,
-.decisions,
-.upNext {
-  color: var(--ink-soft);
+.resetCallout h2 {
+  font-size: 1.05rem;
 }
 
 .upNext {
   padding: 0.7rem 0.9rem;
   border-left: 4px solid var(--accent);
-  background: var(--surface);
+  background: var(--surface-raised);
   border-radius: 0 var(--radius) var(--radius) 0;
   color: var(--ink);
 }
@@ -515,11 +591,6 @@ select:disabled {
   font-weight: 600;
 }
 
-.reminderLine {
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-}
-
 .steps {
   list-style: none;
   display: flex;
@@ -533,9 +604,240 @@ select:disabled {
   border-top: 2px dashed var(--line);
 }
 
+/* --------------------------------------------------------------- triage -- */
+
+.triageCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: calc(var(--space) * 1.25);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  touch-action: none;
+  user-select: none;
+  transition: transform 160ms ease;
+  cursor: grab;
+}
+
+.triageCard:active {
+  cursor: grabbing;
+}
+
+.triageCard--today {
+  outline: 3px solid var(--status-today);
+  outline-offset: 2px;
+}
+
+.triageCard--later {
+  outline: 3px solid var(--status-scheduled);
+  outline-offset: 2px;
+}
+
+.triageDecision {
+  position: absolute;
+  top: 0.8rem;
+  font-weight: 650;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.triageCard--today .triageDecision {
+  right: 1rem;
+  color: var(--status-today);
+}
+
+.triageCard--later .triageDecision {
+  left: 1rem;
+  color: var(--status-scheduled);
+}
+
+.triageTitle {
+  font-size: 1.25rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.laterMenu {
+  padding: 0.6rem;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+}
+
+/* ------------------------------------------------------------------ now -- */
+
+.nowPanel {
+  gap: 1rem;
+}
+
+.nowTitle {
+  font-size: 1.6rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.nowEmpty .upNext {
+  margin-top: 0.4rem;
+}
+
+.stoppedNote {
+  padding: 0.7rem 0.9rem;
+  border-left: 4px solid var(--status-now);
+  background: var(--surface-raised);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.timer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.timerShape {
+  width: 72px;
+  height: 72px;
+}
+
+.timerRect {
+  fill: var(--accent);
+}
+
+.timerDigits {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 650;
+}
+
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.proposalText {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.confirmLine {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 2px solid var(--line);
+}
+
+/* ------------------------------------------------------- onboarding -- */
+
+.onboard {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+}
+
+.onboardBody {
+  width: min(30rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: calc(var(--space) * 1.5);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+
+.onboardBody h2 {
+  font-size: 1.2rem;
+}
+
+.onboardChoices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.onboardChoice {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 48px;
+  padding: 0.6rem 0.9rem;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.onboardChoice--on {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.fontSample {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.fontSample--lexend {
+  font-family: var(--font-lexend), sans-serif;
+}
+
+.fontSample--opendyslexic {
+  font-family: "OpenDyslexic", "Comic Sans MS", Verdana, sans-serif;
+}
+
+.fontSample--system {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.swatch {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  display: inline-block;
+}
+
+.swatch--cream {
+  background: #faf7f2;
+}
+
+.swatch--white {
+  background: #ffffff;
+}
+
+.swatch--dark {
+  background: #141317;
+}
+
+.swatch--contrast {
+  background: #ffffff;
+  border-color: #000000;
+}
+
 /* ------------------------------------------------------------------ log -- */
 
 .log {
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -572,51 +874,18 @@ select:disabled {
   flex: none;
 }
 
-/* ---------------------------------------------------------------- focus -- */
-
-.focus {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  padding: var(--space);
-  background: color-mix(in srgb, var(--background) 88%, transparent);
-  backdrop-filter: blur(6px);
-}
-
-.focusBody {
-  width: min(38rem, 100%);
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  padding: calc(var(--space) * 1.5);
-  border: 2px solid var(--ink);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow);
-}
-
-.focusBody h2 {
-  font-size: 1.5rem;
-}
-
-.focusBody .btn {
-  min-height: 52px;
-  font-size: 1.05rem;
-}
-
 /* ----------------------------------------------------------------- plan -- */
 
 .plan {
+  list-style: none;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
 
 .plan li {
+  display: flex;
+  justify-content: space-between;
   gap: 0.6rem;
   padding: 0.4rem 0;
   border-bottom: 2px dotted var(--line);
@@ -668,4 +937,3 @@ html[data-simplify="true"] .bucket:has(.card) ~ .bucket {
     align-items: stretch;
   }
 }
-

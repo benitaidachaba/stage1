@@ -5,8 +5,9 @@
  *
  * The reducer stays pure — this file owns everything that is not: reading
  * storage once on mount, writing it back after changes, a clock that keeps the
- * page honest, and the shared undo offer. Rendering before hydration uses the
- * module-level SERVER_STATE, so server and client markup always agree.
+ * page honest, the Daily Reset trigger, and the shared undo offer. Rendering
+ * before hydration uses the module-level SERVER_STATE, so server and client
+ * markup always agree.
  */
 
 import {
@@ -16,12 +17,14 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { SERVER_STATE, UNDO_WINDOW_MS, emptyPersistedState } from "@/lib/defaults";
 import { reduce } from "@/lib/store";
 import { loadState, saveState } from "@/lib/storage";
+import { isSameDay } from "@/lib/format";
 import { useReminderLoop, type ReminderLoop } from "./useReminderLoop";
 import type { Action, AppState } from "@/lib/types";
 
@@ -55,6 +58,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [storageError, setStorageError] = useState<string | null>(null);
   /** The snapshot whose offer has already been taken or waved away. */
   const [spentOffer, setSpentOffer] = useState<string | null>(null);
+  /** The day the last reset was run, so it happens once per day, not once per render. */
+  const lastResetDay = useRef<string | null>(null);
 
   const hydrated = state.hydrated;
 
@@ -67,6 +72,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }
     dispatch({ type: "hydrate", state: stored ?? emptyPersistedState() });
   }, []);
+
+  // The Daily Reset: on the first look at the app each day, tasks whose date
+  // went by come back for a new home. Never more than once per day.
+  useEffect(() => {
+    if (!hydrated) return;
+    const day = new Date(now).toDateString();
+    if (lastResetDay.current === day) return;
+    lastResetDay.current = day;
+    dispatch({ type: "reset.run", at: new Date(now).toISOString() });
+  }, [hydrated, now]);
 
   // Write it back, batched.
   useEffect(() => {
@@ -92,8 +107,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const display = state.settings.display;
   useEffect(() => {
     const root = document.documentElement;
-    root.dataset.theme = display.theme;
-    root.dataset.contrast = display.contrast;
+    root.dataset.background = display.background;
     root.dataset.font = display.font;
     root.dataset.reduceMotion = display.reduceMotion ? "true" : "false";
     root.dataset.simplify = display.simplifyLayout ? "true" : "false";
@@ -141,3 +155,5 @@ export function useAppStore(): AppStoreValue {
   if (!value) throw new Error("useAppStore must be used inside AppStoreProvider.");
   return value;
 }
+
+export { isSameDay };

@@ -26,7 +26,8 @@ export interface HeldNudge {
 }
 
 function isRemindable(task: Task): boolean {
-  return task.status === "open" && !task.archived;
+  // A task in the Now view is already in hand; nudging it would be noise.
+  return (task.status === "today" || task.status === "scheduled" || task.status === "inbox") && !task.archived;
 }
 
 function wakeUpAt(task: Task): number {
@@ -111,10 +112,10 @@ export function deliveryFor(
         kind: "unavailable",
         detail: "no mail service is connected yet, so it stayed in the app",
       };
-    case "trusted-person":
+    case "telegram":
       return {
         kind: "unavailable",
-        detail: "no message service is connected yet, so it stayed in the app",
+        detail: "no Telegram service is connected yet, so it stayed in the app",
       };
   }
 }

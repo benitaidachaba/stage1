@@ -1,7 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Lexend } from "next/font/google";
 import { AppStoreProvider } from "@/state/AppStore";
 import "./globals.css";
+
+/**
+ * Lexend, self-hosted through next/font: no request to Google leaves this
+ * domain, and the text is present from the first paint. OpenDyslexic and the
+ * system stack remain choices in settings; Lexend is the default because it is
+ * engineered for reading proficiency, which is the point of this app.
+ */
+const lexend = Lexend({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-lexend",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -21,22 +34,19 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#17161a" },
+    { media: "(prefers-color-scheme: light)", color: "#faf7f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#141317" },
   ],
 };
 
-/**
- * The document shell.
- *
- * The typeface comes from the operating system rather than a web font: text
- * appears at the same moment the page does, which matters more here than
- * typographic consistency. Everything the reader can change lives in settings
- * and is written onto the root element by the store.
- */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme="light" data-contrast="default" data-font="system">
+    <html
+      lang="en"
+      data-background="cream"
+      data-font="lexend"
+      className={lexend.variable}
+    >
       <body>
         <AppStoreProvider>{children}</AppStoreProvider>
       </body>

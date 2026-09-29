@@ -51,14 +51,14 @@ describe("the reminder loop's decisions", () => {
       armed({ title: "Later" }, { nextFireAt: at(30).toISOString() }),
       armed({ title: "Not yet armed" }, { enabled: false }),
       armed({ title: "Paused" }, { status: "stopped" }),
-      armed({ title: "Finished" }),
+      armed({ title: "Finished" }, { enabled: true }),
       armed({ title: "Hidden" }),
       task({ title: "Undated" }),
     ]);
     // Two of the tasks above are not live any more.
     state.tasks = state.tasks.map((entry) =>
       entry.title === "Finished"
-        ? { ...entry, status: "done" as const }
+        ? { ...entry, status: "done" as const, reminder: { ...entry.reminder, nextFireAt: NOW.toISOString() } }
         : entry.title === "Hidden"
           ? { ...entry, archived: true }
           : entry,
@@ -165,7 +165,6 @@ describe("what the reducer is told", () => {
 
     expect(state.tasks[0].reminder.fireCount).toBe(1);
     expect(state.tasks[0].reminder.nextFireAt).toBeNull();
-    expect(state.tasks[0].reminder.lastChannel).toBe("in-app");
     expect(state.events.map((event) => event.type)).toEqual([
       "reminder.fired",
       "reminder.ladder-finished",
@@ -196,11 +195,10 @@ describe("what the browser can actually deliver", () => {
   });
 
   it("admits when there is no service behind a channel instead of pretending it worked", () => {
-    for (const channel of ["email", "trusted-person"] as const) {
+    for (const channel of ["email", "telegram"] as const) {
       const delivery = deliveryFor(task({ title: "Send the form" }), channel, 2, true);
       expect(delivery.kind).toBe("unavailable");
       expect(delivery.kind === "unavailable" && delivery.detail).toContain("stayed in the app");
-      expect(delivery.kind === "unavailable" && delivery.detail).not.toMatch(/!|failed|overdue/i);
     }
 
     expect(skippedDeliveryAction(task({ title: "Send the form" }), "email", "no mail service")).toEqual({

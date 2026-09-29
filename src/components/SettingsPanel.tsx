@@ -4,12 +4,12 @@ import { useState } from "react";
 import { ACTIONS, SETTINGS, UI } from "@/lib/copy";
 import { allowedMaxStep, describePlan, isQuietHours, stepOrDefault } from "@/lib/escalation";
 import { median } from "@/lib/format";
-import { dashboardCounts } from "@/lib/triage";
 import { exportJson, parseImport } from "@/lib/storage";
 import { useAppStore } from "@/state/AppStore";
-import type { DisplaySettings, SettingsPatch } from "@/lib/types";
+import type { BackgroundChoice, DisplaySettings, FontChoice, SettingsPatch } from "@/lib/types";
 
-const FONT_CHOICES = ["system", "hyperlegible", "opendyslexic"] as const;
+const FONT_CHOICES: FontChoice[] = ["lexend", "opendyslexic", "system"];
+const BACKGROUND_CHOICES: BackgroundChoice[] = ["cream", "white", "dark", "contrast"];
 
 type ReminderPatch = NonNullable<SettingsPatch["reminders"]>;
 
@@ -31,7 +31,6 @@ export function SettingsPanel() {
   // The median, not the average: one five-minute capture should not make a
   // two-minute habit look slow.
   const typicalMs = median(state.settings.captureDurationsMs);
-  const counts = dashboardCounts(state, now);
 
   function download() {
     const blob = new Blob([exportJson(state)], { type: "application/json" });
@@ -64,6 +63,34 @@ export function SettingsPanel() {
       <div className="panelHead">
         <h2>{SETTINGS.lookHeading}</h2>
       </div>
+
+      <label className="field">
+        <span>{SETTINGS.font}</span>
+        <select
+          value={display.font}
+          onChange={(event) => applyDisplay({ font: event.target.value as FontChoice })}
+        >
+          {FONT_CHOICES.map((choice) => (
+            <option key={choice} value={choice}>
+              {SETTINGS.fonts[choice]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="field">
+        <span>{SETTINGS.background}</span>
+        <select
+          value={display.background}
+          onChange={(event) => applyDisplay({ background: event.target.value as BackgroundChoice })}
+        >
+          {BACKGROUND_CHOICES.map((choice) => (
+            <option key={choice} value={choice}>
+              {SETTINGS.backgrounds[choice]}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="field">
         <span>
@@ -107,48 +134,11 @@ export function SettingsPanel() {
         />
       </label>
 
-      <label className="field">
-        <span>{SETTINGS.font}</span>
-        <select
-          value={display.font}
-          onChange={(event) => applyDisplay({ font: event.target.value as DisplaySettings["font"] })}
-        >
-          {FONT_CHOICES.map((choice) => (
-            <option key={choice} value={choice}>
-              {SETTINGS.fonts[choice]}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="field">
-        <span>{SETTINGS.theme}</span>
-        <select
-          value={display.theme}
-          onChange={(event) => applyDisplay({ theme: event.target.value as DisplaySettings["theme"] })}
-        >
-          <option value="light">{SETTINGS.themes.light}</option>
-          <option value="dusk">{SETTINGS.themes.dusk}</option>
-        </select>
-      </label>
-
-      <label className="field">
-        <span>{SETTINGS.contrast}</span>
-        <select
-          value={display.contrast}
-          onChange={(event) =>
-            applyDisplay({ contrast: event.target.value as DisplaySettings["contrast"] })
-          }
-        >
-          <option value="default">{SETTINGS.contrastOptions.default}</option>
-          <option value="high">{SETTINGS.contrastOptions.high}</option>
-        </select>
-      </label>
-
       {[
         { key: "reduceMotion" as const, label: SETTINGS.reduceMotion },
         { key: "simplifyLayout" as const, label: SETTINGS.simplifyLayout },
         { key: "readAloud" as const, label: SETTINGS.readAloud },
+        { key: "sounds" as const, label: SETTINGS.sounds },
       ].map((choice) => (
         <label key={choice.key} className="check">
           <input
@@ -162,6 +152,39 @@ export function SettingsPanel() {
         </label>
       ))}
 
+      <label className="field">
+        <span>
+          {SETTINGS.speechRate} ({display.speechRate.toFixed(1)}×)
+        </span>
+        <input
+          type="range"
+          min={0.5}
+          max={2}
+          step={0.1}
+          value={display.speechRate}
+          onChange={(event) => applyDisplay({ speechRate: Number(event.target.value) })}
+        />
+      </label>
+
+      <div className="panelHead">
+        <h2>{SETTINGS.assistantHeading}</h2>
+      </div>
+
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={state.settings.consent.assistantProcessing}
+          onChange={(event) =>
+            dispatch({
+              type: "settings.update",
+              patch: { consent: { assistantProcessing: event.target.checked } },
+            })
+          }
+        />
+        <span>{SETTINGS.assistantEnabled}</span>
+      </label>
+      <p className="hint">{SETTINGS.assistantConsent}</p>
+
       <div className="panelHead">
         <h2>{SETTINGS.nudgeHeading}</h2>
       </div>
@@ -173,6 +196,16 @@ export function SettingsPanel() {
           onChange={(event) => applyReminders({ enabled: event.target.checked })}
         />
         <span>{SETTINGS.remindersOn}</span>
+      </label>
+
+      <label className="field">
+        <span>{SETTINGS.reminderTime}</span>
+        <input
+          type="time"
+          value={reminders.reminderTime}
+          disabled={!reminders.enabled}
+          onChange={(event) => applyReminders({ reminderTime: event.target.value })}
+        />
       </label>
 
       <label className="field">
@@ -204,6 +237,7 @@ export function SettingsPanel() {
           onChange={(event) => applyReminders({ maxStep: Number(event.target.value) })}
         />
       </label>
+      <p className="hint">{SETTINGS.maxStepValue(allowedMaxStep(reminders) + 1)}</p>
 
       <label className="check">
         <input
@@ -226,9 +260,7 @@ export function SettingsPanel() {
           >
             {ACTIONS.allowNotifications}
           </button>
-          <span className="hint">
-            {canNotify ? UI.notificationReady : UI.notificationBlocked}
-          </span>
+          <span className="hint">{canNotify ? UI.notificationReady : UI.notificationBlocked}</span>
         </div>
       ) : null}
 
@@ -256,32 +288,22 @@ export function SettingsPanel() {
       <label className="check">
         <input
           type="checkbox"
-          checked={reminders.trustedPerson}
+          checked={reminders.telegram}
           disabled={!reminders.enabled}
-          onChange={(event) => applyReminders({ trustedPerson: event.target.checked })}
+          onChange={(event) => applyReminders({ telegram: event.target.checked })}
         />
-        <span>{SETTINGS.trustedPerson}</span>
+        <span>{SETTINGS.telegram}</span>
       </label>
 
-      {reminders.trustedPerson ? (
-        <div className="row row--wrap">
-          <label className="field">
-            <span>{SETTINGS.trustedPersonName}</span>
-            <input
-              type="text"
-              value={reminders.trustedPersonName}
-              onChange={(event) => applyReminders({ trustedPersonName: event.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>{SETTINGS.trustedPersonContact}</span>
-            <input
-              type="text"
-              value={reminders.trustedPersonContact}
-              onChange={(event) => applyReminders({ trustedPersonContact: event.target.value })}
-            />
-          </label>
-        </div>
+      {reminders.telegram ? (
+        <label className="field">
+          <span>{SETTINGS.telegramHandle}</span>
+          <input
+            type="text"
+            value={reminders.telegramHandle}
+            onChange={(event) => applyReminders({ telegramHandle: event.target.value })}
+          />
+        </label>
       ) : null}
 
       <p className="hint">{SETTINGS.channelsNote}</p>
@@ -349,9 +371,6 @@ export function SettingsPanel() {
         {typicalMs === null
           ? SETTINGS.captureUnknown
           : SETTINGS.captureTypical((typicalMs / 1000).toFixed(1))}
-      </p>
-      <p className="hint">
-        {SETTINGS.openNow(counts.open)} {SETTINGS.decidedToday(counts.decidedToday)}
       </p>
 
       <div className="panelHead">

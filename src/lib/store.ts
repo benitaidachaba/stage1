@@ -1,9 +1,9 @@
 import type { Action, AppState, Settings, Task, TaskEvent, UndoSnapshot } from "./types";
-import { UNDO_STACK_LIMIT, makeTask } from "./defaults";
+import { UNDO_STACK_LIMIT, makeStep, makeTask } from "./defaults";
 import { newId } from "./ids";
 import { parseCapture } from "./parse";
 import { firstFireAt, recordInteraction, snoozeReminder, stopReminder } from "./escalation";
-import { REMINDER_CHANNEL_LABEL, nudgeText, plural, quietHoursLine } from "./copy";
+import { REMINDER_CHANNEL_LABEL, nudgeText, plural, quietHoursLine, STATUS } from "./copy";
 import { clearTasks } from "./storage";
 import { addDays, addMinutes, describeDue, minutesBetween } from "./format";
 
@@ -13,6 +13,9 @@ const CAPTURE_SAMPLE_LIMIT = 200;
 /** A reopen deserves a moment of breathing room before any nudge returns. */
 const REOPEN_GRACE_MINUTES = 15;
 
+/** Default length of the optional Now-view timer, in minutes. */
+export const DEFAULT_TIMER_MINUTES = 25;
+
 /**
  * Field names are for people, not for the database. If a settings change shows
  * up in the log, it should read like something a friend would say.
@@ -21,8 +24,9 @@ const SETTINGS_FIELD_LABELS: Record<string, string> = {
   displayName: "your name",
   display: "how things look",
   reminders: "how nudges reach you",
-  ai: "whether the app offers a breakdown",
   captureDurationsMs: "how you capture things",
+  onboarded: "setup",
+  consent: "your choices about sharing",
 };
 
 type TaskUpdate = (task: Task, at: string) => Task;
@@ -43,7 +47,8 @@ function applyToTask(state: AppState, id: string, update: TaskUpdate, at: string
  * nudged about, because there is nothing to nudge about yet.
  */
 function armReminder(task: Task, now: Date, settings: Settings, graceMinutes = 0): Task {
-  if (task.status !== "open" || !task.dueAt) return task;
+  const active = task.status !== "done" && task.status !== "dropped" && task.status !== "rescheduled";
+  if (!active || !task.dueAt) return task;
   if (!settings.reminders.enabled) return task;
   const alreadyPlanned =
     task.reminder.enabled && task.reminder.status === "scheduled" && task.reminder.nextFireAt !== null;
@@ -67,7 +72,8 @@ function armReminder(task: Task, now: Date, settings: Settings, graceMinutes = 0
 
 /** Recomputes the plan after a date change or a change to reminder settings. */
 function replanReminder(task: Task, now: Date, settings: Settings): Task {
-  if (task.status !== "open" || !task.reminder.enabled) return task;
+  const active = task.status !== "done" && task.status !== "dropped" && task.status !== "rescheduled";
+  if (!active || !task.reminder.enabled) return task;
   if (task.reminder.status === "stopped") return { ...task, reminder: { ...task.reminder, nextFireAt: null } };
   if (!settings.reminders.enabled || !task.dueAt) {
     return { ...task, reminder: { ...task.reminder, nextFireAt: null } };
@@ -130,6 +136,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       label,
       at,
       tasks: prev.tasks,
+      areas: prev.areas,
       settings: prev.settings,
       focusSession: prev.focusSession,
     };
@@ -170,6 +177,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           estimateMinutes: parsed.estimateMinutes,
           energy: parsed.energy,
           tags: parsed.tags,
+          source: action.input.source ?? "typed",
         },
         at,
       );
@@ -184,6 +192,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         {
           matches: parsed.matched.join(", ") || null,
           estimateMinutes: task.estimateMinutes,
+          source: task.source,
         },
       );
       if (task.reminder.nextFireAt) {
@@ -229,6 +238,48 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           ? `Changed the date on “${result.before.title}” to ${describeDue(patch.dueAt, now)}.`
           : `Edited “${result.before.title}” (${fields.join(", ")}).`,
         { fields: fields.join(", ") },
+      );
+      state = result.state;
+      break;
+    }
+
+    // The heart of triage: one deliberate move, logged in plain words.
+    case "triage": {
+      const result = applyToTask(state, action.id, (task) => {
+        if (action.status === "dropped") {
+          return {
+            ...task,
+            status: "dropped",
+            resolution: "dropped",
+            droppedAt: at,
+            lastDecisionAt: at,
+            updatedAt: at,
+            reminder: { ...task.reminder, enabled: false, nextFireAt: null },
+          };
+        }
+        const next: Task = {
+          ...task,
+          status: action.status,
+          dueAt: action.dueAt !== undefined ? action.dueAt : task.dueAt,
+          lastDecisionAt: at,
+          updatedAt: at,
+          reminder: { ...task.reminder, enabled: false, nextFireAt: null },
+        };
+        return armReminder(next, now, state.settings);
+      }, at);
+      if (!result.before || !result.after) break;
+      snapshot(`triaging “${result.before.title}”`);
+      const where =
+        action.status === "dropped"
+          ? "dropped"
+          : STATUS[action.status].label.toLowerCase();
+      log(
+        action.status === "dropped" ? "task.dropped" : "task.triaged",
+        action.id,
+        `“${result.before.title}” was triaged: ${where}${
+          action.dueAt ? ` for ${describeDue(action.dueAt, now)}` : ""
+        }.`,
+        { status: action.status, dueAt: action.dueAt ?? null },
       );
       state = result.state;
       break;
@@ -298,6 +349,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           const next: Task = {
             ...task,
             dueAt: action.dueAt,
+            status: action.dueAt ? "scheduled" : "today",
             resolution: "rescheduled",
             rescheduleCount: task.rescheduleCount + 1,
             lastDecisionAt: at,
@@ -398,7 +450,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         (task) => {
           const next: Task = {
             ...task,
-            status: "open",
+            status: "inbox",
             resolution: null,
             completedAt: null,
             droppedAt: null,
@@ -435,6 +487,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         action.id,
         (task) => ({
           ...task,
+          status: "now",
           lastDecisionAt: at,
           updatedAt: at,
           reminder: recordInteraction(task, now, state.settings.reminders),
@@ -442,8 +495,11 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         at,
       );
       if (!result.before) break;
-      log("task.started", action.id, `Opened “${result.before.title}” in focus view.`);
-      state = result.state;
+      log("task.started", action.id, `Opened “${result.before.title}” in the Now view.`);
+      state = {
+        ...result.state,
+        focusSession: { taskId: action.id, startedAt: at, timerStarted: false, timerStartedAt: null, timerMinutes: null },
+      };
       break;
     }
 
@@ -494,7 +550,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       break;
     }
 
-    case "addMicroStep": {
+    case "addStep": {
       const text = action.text.trim();
       if (text.length === 0) break;
       const result = applyToTask(
@@ -503,8 +559,8 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         (task) => ({
           ...task,
           updatedAt: at,
-          microSteps: [...task.microSteps, { id: newId("stp"), text, done: false }],
-          // The first concrete step becomes the way in, so focus view always has one.
+          steps: [...task.steps, makeStep({ id: newId("stp"), taskId: task.id, text, source: action.source ?? "user" }, at)],
+          // The first concrete step becomes the way in, so the Now view always has one.
           nextStep: task.nextStep ?? text,
           lastDecisionAt: at,
           reminder: recordInteraction(task, now, state.settings.reminders),
@@ -514,18 +570,18 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       if (!result.before) break;
       snapshot(`adding a step to “${result.before.title}”`);
       log(
-        "microstep.added",
+        action.source === "assistant" ? "step.accepted" : "step.added",
         action.id,
         `Added “${text}” as a step in “${result.before.title}”.`,
-        { steps: result.before.microSteps.length + 1 },
+        { steps: result.before.steps.length + 1, source: action.source ?? "user" },
       );
       state = result.state;
       break;
     }
 
-    case "toggleMicroStep": {
+    case "toggleStep": {
       const target = state.tasks.find((task) => task.id === action.id) ?? null;
-      const step = target?.microSteps.find((entry) => entry.id === action.stepId) ?? null;
+      const step = target?.steps.find((entry) => entry.id === action.stepId) ?? null;
       if (!target || !step) break;
       const nowDone = !step.done;
       const result = applyToTask(
@@ -534,17 +590,71 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         (task) => ({
           ...task,
           updatedAt: at,
-          microSteps: task.microSteps.map((entry) =>
+          steps: task.steps.map((entry) =>
             entry.id === action.stepId ? { ...entry, done: nowDone } : entry,
           ),
         }),
         at,
       );
       log(
-        "microstep.toggled",
+        "step.toggled",
         action.id,
         `${nowDone ? "Ticked" : "Un-ticked"} “${step.text}” in “${target.title}”.`,
         { done: nowDone },
+      );
+      state = result.state;
+      break;
+    }
+
+    case "setNextStep": {
+      const text = action.text?.trim() ?? null;
+      const result = applyToTask(
+        state,
+        action.id,
+        (task) => ({ ...task, nextStep: text && text.length > 0 ? text : null, updatedAt: at }),
+        at,
+      );
+      if (!result.before) break;
+      snapshot(`changing the first step of “${result.before.title}”`);
+      log(
+        "step.added",
+        action.id,
+        text && text.length > 0
+          ? `“${result.before.title}” starts with “${text}”.`
+          : `The first step of “${result.before.title}” was cleared.`,
+      );
+      state = result.state;
+      break;
+    }
+
+    case "proposal.offered": {
+      const result = applyToTask(state, action.id, (task) => task, at);
+      if (!result.before) break;
+      log(
+        "assistant.proposal",
+        action.id,
+        `The assistant offered a first step for “${result.before.title}”. Only the task text was used.`,
+      );
+      state = result.state;
+      break;
+    }
+
+    case "note.stoppedHere": {
+      const text = action.text.trim();
+      const result = applyToTask(
+        state,
+        action.id,
+        (task) => ({ ...task, stoppedHereNote: text.length > 0 ? text : null, updatedAt: at }),
+        at,
+      );
+      if (!result.before) break;
+      snapshot(`saving a note on “${result.before.title}”`);
+      log(
+        "note.stopped-here",
+        action.id,
+        text.length > 0
+          ? `A note was left on “${result.before.title}” for the next session.`
+          : `The note on “${result.before.title}” was cleared.`,
       );
       state = result.state;
       break;
@@ -559,6 +669,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       state = {
         ...state,
         tasks: last.tasks,
+        areas: last.areas,
         settings: last.settings,
         focusSession: last.focusSession,
         undoStack: prev.undoStack.slice(0, -1),
@@ -580,8 +691,9 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
             ...(patch.reminders?.quietHours ?? {}),
           },
         },
-        ai: { ...state.settings.ai, ...(patch.ai ?? {}) },
         captureDurationsMs: patch.captureDurationsMs ?? state.settings.captureDurationsMs,
+        onboarded: patch.onboarded ?? state.settings.onboarded,
+        consent: { ...state.settings.consent, ...(patch.consent ?? {}) },
       };
       const fields = Object.keys(patch);
       if (fields.length === 0) break;
@@ -741,21 +853,29 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         "focus.started",
         action.id,
         target.nextStep
-          ? `Focus view open on “${target.title}”, starting with “${target.nextStep}”.`
-          : `Focus view open on “${target.title}”.`,
+          ? `Now view open on “${target.title}”, starting with “${target.nextStep}”.`
+          : `Now view open on “${target.title}”.`,
       );
-      state = { ...state, focusSession: { taskId: action.id, startedAt: at } };
+      state = {
+        ...state,
+        focusSession: { taskId: action.id, startedAt: at, timerStarted: false, timerStartedAt: null, timerMinutes: null },
+      };
       break;
     }
 
-    case "focus.stuck": {
-      const target = state.tasks.find((task) => task.id === action.id) ?? null;
-      if (!target) break;
-      log(
-        "focus.stuck",
-        action.id,
-        `“${target.title}” felt stuck, so it is asking for a smaller first step.`,
-      );
+    case "focus.timer": {
+      if (!state.focusSession) break;
+      const minutes = action.minutes === null ? null : Math.max(Math.round(action.minutes), 1);
+      snapshot(minutes === null ? "stopping the timer" : "starting the timer");
+      state = {
+        ...state,
+        focusSession: {
+          ...state.focusSession,
+          timerStarted: minutes !== null,
+          timerStartedAt: minutes === null ? null : at,
+          timerMinutes: minutes,
+        },
+      };
       break;
     }
 
@@ -767,11 +887,106 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         "focus.ended",
         target?.id ?? null,
         target
-          ? `Left focus view after ${minutes} ${plural(minutes, "minute")} with “${target.title}”.`
-          : `Left focus view after ${minutes} ${plural(minutes, "minute")}.`,
+          ? `Left the Now view after ${minutes} ${plural(minutes, "minute")} with “${target.title}”.`
+          : `Left the Now view after ${minutes} ${plural(minutes, "minute")}.`,
         { minutes },
       );
+      // Time spent is recorded on the task, as a fact rather than a score.
+      if (target && minutes > 0) {
+        const spent = (target.actualMinutes ?? 0) + minutes;
+        state = {
+          ...state,
+          tasks: state.tasks.map((task) =>
+            task.id === target.id ? { ...task, actualMinutes: spent, updatedAt: at } : task,
+          ),
+        };
+      }
       state = { ...state, focusSession: null };
+      break;
+    }
+
+    case "reset.run": {
+      // The Daily Reset: every task whose date went by returns for a new home.
+      // It is one logged action, so the reset itself has a record.
+      const stale = state.tasks.filter(
+        (task) => task.status !== "done" && task.status !== "dropped" && !task.archived && task.dueAt !== null &&
+          new Date(task.dueAt).getTime() < now.getTime(),
+      );
+      if (stale.length === 0) {
+        log("reset.completed", null, "The reset found nothing that needed a new home.");
+        break;
+      }
+      snapshot("running the daily reset");
+      const staleIds = new Set(stale.map((task) => task.id));
+      state = {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          staleIds.has(task.id)
+            ? { ...task, status: "inbox", updatedAt: at, lastDecisionAt: at, reminder: { ...task.reminder, enabled: false, nextFireAt: null } }
+            : task,
+        ),
+      };
+      log(
+        "reset.completed",
+        null,
+        `The daily reset gave ${stale.length} ${plural(stale.length, "task")} a fresh look. Nothing was lost.`,
+        { returned: stale.length },
+      );
+      break;
+    }
+
+    case "area.add": {
+      snapshot("creating an area");
+      const area = {
+        ...action.area,
+        id: newId("area"),
+        createdAt: at,
+      };
+      log("area.created", null, `Created the area “${area.name}”.`);
+      state = { ...state, areas: [...state.areas, area] };
+      break;
+    }
+
+    case "area.update": {
+      const before = state.areas.find((area) => area.id === action.id) ?? null;
+      if (!before) break;
+      snapshot(`editing the area “${before.name}”`);
+      state = {
+        ...state,
+        areas: state.areas.map((area) => (area.id === action.id ? { ...area, ...action.patch } : area)),
+      };
+      log("area.edited", null, `Changed the area “${before.name}”.`);
+      break;
+    }
+
+    case "area.remove": {
+      const before = state.areas.find((area) => area.id === action.id) ?? null;
+      if (!before) break;
+      snapshot(`removing the area “${before.name}”`);
+      // Tasks keep existing; they simply lose the label.
+      state = {
+        ...state,
+        areas: state.areas.filter((area) => area.id !== action.id),
+        tasks: state.tasks.map((task) =>
+          task.areaId === action.id ? { ...task, areaId: null, updatedAt: at } : task,
+        ),
+      };
+      log("area.removed", null, `Removed the area “${before.name}”. Its tasks are unchanged.`);
+      break;
+    }
+
+    case "assignArea": {
+      const result = applyToTask(
+        state,
+        action.id,
+        (task) => ({ ...task, areaId: action.areaId, updatedAt: at }),
+        at,
+      );
+      if (!result.before) break;
+      snapshot(`moving “${result.before.title}” between areas`);
+      const name = action.areaId ? (state.areas.find((area) => area.id === action.areaId)?.name ?? "an area") : "no area";
+      log("task.edited", action.id, `“${result.before.title}” is now in ${name}.`);
+      state = result.state;
       break;
     }
 
@@ -788,6 +1003,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       state = {
         ...state,
         tasks,
+        areas: incoming.areas ?? [],
         events: incoming.events,
         settings: incoming.settings,
         version: incoming.version,

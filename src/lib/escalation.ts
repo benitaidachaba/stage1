@@ -45,9 +45,9 @@ export const LADDER: LadderStep[] = [
   },
   {
     step: 3,
-    channel: "trusted-person",
+    channel: "telegram",
     afterMinutes: 1440,
-    label: "A message to your chosen person, the next day",
+    label: "A message on Telegram, the next day",
     needsOptIn: true,
   },
 ];
@@ -75,11 +75,7 @@ export function resolveChannel(step: number, settings: ReminderSettings): Channe
     if (!rung.needsOptIn) return rung.channel;
     if (rung.channel === "browser" && settings.browserNotifications) return rung.channel;
     if (rung.channel === "email" && settings.emailNotifications) return rung.channel;
-    if (
-      rung.channel === "trusted-person" &&
-      settings.trustedPerson &&
-      (settings.trustedPersonContact.trim().length > 0 || settings.trustedPersonName.trim().length > 0)
-    ) {
+    if (rung.channel === "telegram" && settings.telegram && settings.telegramHandle.trim().length > 0) {
       return rung.channel;
     }
   }
@@ -147,7 +143,7 @@ function scheduleAfter(step: number, now: Date, settings: ReminderSettings): str
  *  3. quiet hours hold everything, including escalations, until morning
  *  4. the first nudge is gentle, every later one changes channel
  *  5. when the ladder runs out of rungs the app stops nudging and says so,
- *     instead of inventing a sixth way to interrupt someone
+ *     instead of inventing a fifth way to interrupt someone
  */
 export function evaluateReminder(
   task: Task,
