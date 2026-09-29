@@ -1,14 +1,18 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Lexend } from "next/font/google";
+import "@fontsource/opendyslexic/latin-400.css";
+import "@fontsource/opendyslexic/latin-700.css";
 import { AppStoreProvider } from "@/state/AppStore";
 import "./globals.css";
 
 /**
  * Lexend, self-hosted through next/font: no request to Google leaves this
- * domain, and the text is present from the first paint. OpenDyslexic and the
- * system stack remain choices in settings; Lexend is the default because it is
- * engineered for reading proficiency, which is the point of this app.
+ * domain, and the text is present from the first paint. OpenDyslexic ships
+ * self-hosted too (@fontsource), so the accessibility choice is real rather
+ * than a name in a menu; the system stack remains the third choice. Lexend is
+ * the default because it is engineered for reading proficiency — and, now, it
+ * is also the brand face of Pocket.
  */
 const lexend = Lexend({
   subsets: ["latin"],
@@ -18,24 +22,24 @@ const lexend = Lexend({
 
 export const metadata: Metadata = {
   title: {
-    default: "Small Steps",
-    template: "%s · Small Steps",
+    default: "Pocket",
+    template: "%s · Pocket",
   },
   description:
-    "A to-do app for a brain that will not open a form. Capture a thought in a few seconds, decide later, and nothing you skip is hidden from you.",
-  applicationName: "Small Steps",
+    "Say it once. Pocket holds it, reminds you, and never lets it go quiet. Capture a thought in seconds, decide later, and nothing you skip is hidden from you.",
+  applicationName: "Pocket",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Small Steps",
+    title: "Pocket",
   },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf7f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#141317" },
+    { media: "(prefers-color-scheme: light)", color: "#f2e4d0" },
+    { media: "(prefers-color-scheme: dark)", color: "#2a1018" },
   ],
 };
 

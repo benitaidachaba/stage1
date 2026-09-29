@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, SETTINGS, UI } from "@/lib/copy";
 import { allowedMaxStep, describePlan, isQuietHours, stepOrDefault } from "@/lib/escalation";
 import { median } from "@/lib/format";
 import { exportJson, parseImport } from "@/lib/storage";
 import { useAppStore } from "@/state/AppStore";
-import type { BackgroundChoice, DisplaySettings, FontChoice, SettingsPatch } from "@/lib/types";
+import { AREA_COLOURS } from "@/lib/defaults";
+import type { AreaIcon, BackgroundChoice, DisplaySettings, FontChoice, SettingsPatch } from "@/lib/types";
 
 const FONT_CHOICES: FontChoice[] = ["lexend", "opendyslexic", "system"];
 const BACKGROUND_CHOICES: BackgroundChoice[] = ["cream", "white", "dark", "contrast"];
@@ -32,12 +34,16 @@ export function SettingsPanel() {
   // two-minute habit look slow.
   const typicalMs = median(state.settings.captureDurationsMs);
 
+  // C5: the bookmarklet. It opens this app with the page's title and URL in the
+  // capture field as ?capture=…, where the text waits reviewable, unsaved.
+  const bookmarkletHref = `javascript:(function(){var t=document.title;var u=location.href;var s=encodeURIComponent(t+' '+u);window.open('${typeof window !== "undefined" ? window.location.origin : ""}/?capture='+s,'_blank');})();`;
+
   function download() {
     const blob = new Blob([exportJson(state)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `small-steps-backup-${now.toISOString().slice(0, 10)}.json`;
+    link.download = `pocket-backup-${now.toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
     dispatch({ type: "data.exported" });
@@ -164,6 +170,21 @@ export function SettingsPanel() {
           value={display.speechRate}
           onChange={(event) => applyDisplay({ speechRate: Number(event.target.value) })}
         />
+      </label>
+
+      <div className="panelHead">
+        <h2>{SETTINGS.energyModeHeading}</h2>
+      </div>
+      <p className="hint">{SETTINGS.energyModeNote}</p>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={display.lowEnergyMode}
+          onChange={(event) =>
+            applyDisplay({ lowEnergyMode: event.target.checked })
+          }
+        />
+        <span>{UI.energyHeading}</span>
       </label>
 
       <div className="panelHead">
@@ -374,10 +395,28 @@ export function SettingsPanel() {
       </p>
 
       <div className="panelHead">
+        <h2>Areas</h2>
+      </div>
+      <p className="hint">An area is a course, a project, a workstream. Optional, always.</p>
+      <AreaEditor />
+
+      <div className="panelHead">
         <h2>{SETTINGS.dataHeading}</h2>
       </div>
 
       <p className="hint">{UI.storageNote}</p>
+
+      <div className="panelHead">
+        <h2>Quick capture from other pages</h2>
+      </div>
+      <p className="hint">
+        Drag this button to your bookmarks bar. On any page, click it and the page title and link land
+        in the capture box here, ready to save — nothing is sent until you save it.
+      </p>
+      <a className="btn bookmarklet" href={bookmarkletHref} onClick={(event) => event.preventDefault()}>
+        + Pocket
+      </a>
+
       <div className="row row--wrap">
         <button type="button" className="btn" onClick={download}>
           {ACTIONS.exportBackup}
@@ -419,5 +458,187 @@ export function SettingsPanel() {
       )}
       <p className="hint">{UI.clearNote}</p>
     </section>
+  );
+}
+
+/** The icon choices, in the same order the types define them. */
+const AREA_ICON_KEYS: AreaIcon[] = ["dot", "book", "briefcase", "home", "heart", "spark", "leaf", "flag"];
+
+/**
+ * Z1: areas with a name, colour and icon, plus the optional deadline. Create,
+ * edit and remove all live here; assigning stays in Triage, where it belongs.
+ */
+function AreaEditor() {
+  const { state, dispatch } = useAppStore();
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<{ name: string; colour: string; icon: AreaIcon; deadline: string } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+
+  function startDraft() {
+    setDraft({ name: "", colour: AREA_COLOURS[0], icon: "dot", deadline: "" });
+    setCreating(true);
+    setEditingId(null);
+  }
+
+  function saveDraft() {
+    if (!draft) return;
+    const name = draft.name.trim();
+    if (name.length === 0) return;
+    const deadline = draft.deadline.length > 0 ? new Date(`${draft.deadline}T09:00:00`).toISOString() : null;
+    if (editingId !== null) {
+      dispatch({ type: "area.update", id: editingId, patch: { name, colour: draft.colour, icon: draft.icon, deadline } });
+    } else {
+      dispatch({ type: "area.add", area: { name, colour: draft.colour, icon: draft.icon, deadline } });
+    }
+    setDraft(null);
+    setCreating(false);
+    setEditingId(null);
+  }
+
+  function beginEdit(areaId: string) {
+    const area = state.areas.find((entry) => entry.id === areaId);
+    if (!area) return;
+    setDraft({
+      name: area.name,
+      colour: area.colour,
+      icon: area.icon,
+      deadline: area.deadline ? area.deadline.slice(0, 10) : "",
+    });
+    setEditingId(areaId);
+    setCreating(true);
+  }
+
+  const showingForm = creating && draft !== null;
+
+  return (
+    <div className="areaEditor">
+      {state.areas.length === 0 && !showingForm ? (
+        <p className="hint">No areas yet.</p>
+      ) : null}
+
+      {state.areas.map((area) =>
+        editingId === area.id && draft !== null ? null : (
+          <div key={area.id} className="areaRow">
+            <span className="chip">
+              <span className="areaDot" style={{ background: area.colour }} aria-hidden="true" />
+              {(() => {
+                const AreaGlyph = AREA_ICON_COMPONENTS[area.icon] ?? AREA_ICON_COMPONENTS.dot;
+                return <AreaGlyph size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />;
+              })()}
+              {area.name}
+            </span>
+            {area.deadline ? (
+              <span className="hint">Deadline {new Date(area.deadline).toLocaleDateString()}</span>
+            ) : null}
+            {confirmRemove === area.id ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={() => {
+                    dispatch({ type: "area.remove", id: area.id });
+                    setConfirmRemove(null);
+                  }}
+                >
+                  Remove for real
+                </button>
+                <button type="button" className="btn btn--quiet" onClick={() => setConfirmRemove(null)}>
+                  {ACTIONS.dismiss}
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="btn btn--quiet" onClick={() => beginEdit(area.id)}>
+                  Edit
+                </button>
+                <button type="button" className="btn btn--quiet" onClick={() => setConfirmRemove(area.id)}>
+                  Remove
+                </button>
+              </>
+            )}
+          </div>
+        ),
+      )}
+
+      {showingForm && draft !== null ? (
+        <div className="areaForm">
+          <label className="field">
+            <span>Name</span>
+            <input
+              type="text"
+              value={draft.name}
+              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+            />
+          </label>
+          <div className="row row--wrap" role="group" aria-label="Colour">
+            <span className="hint">Colour</span>
+            {AREA_COLOURS.map((colour) => (
+              <button
+                key={colour}
+                type="button"
+                className={`swatchBtn${draft.colour === colour ? " swatchBtn--on" : ""}`}
+                aria-pressed={draft.colour === colour}
+                aria-label={`Colour ${colour}`}
+                onClick={() => setDraft({ ...draft, colour })}
+              >
+                <span className="areaDot" style={{ background: colour }} aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+          <div className="row row--wrap" role="group" aria-label="Icon">
+            <span className="hint">Icon</span>
+            {AREA_ICON_KEYS.map((iconKey) => {
+              const AreaGlyph = AREA_ICON_COMPONENTS[iconKey] ?? AREA_ICON_COMPONENTS.dot;
+              return (
+                <button
+                  key={iconKey}
+                  type="button"
+                  className={`chip chip--button${draft.icon === iconKey ? " chip--on" : ""}`}
+                  aria-pressed={draft.icon === iconKey}
+                  aria-label={`Icon ${iconKey}`}
+                  onClick={() => setDraft({ ...draft, icon: iconKey })}
+                >
+                  <AreaGlyph size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+          <label className="field">
+            <span>Deadline, optional — an exam date, a launch</span>
+            <input
+              type="date"
+              value={draft.deadline}
+              onChange={(event) => setDraft({ ...draft, deadline: event.target.value })}
+            />
+          </label>
+          <div className="row row--wrap">
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={draft.name.trim().length === 0}
+              onClick={saveDraft}
+            >
+              {editingId !== null ? "Save changes" : "Create area"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--quiet"
+              onClick={() => {
+                setDraft(null);
+                setCreating(false);
+                setEditingId(null);
+              }}
+            >
+              {ACTIONS.dismiss}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn" onClick={startDraft}>
+          New area
+        </button>
+      )}
+    </div>
   );
 }

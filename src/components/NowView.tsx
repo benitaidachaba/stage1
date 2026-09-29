@@ -38,6 +38,8 @@ export function NowView() {
   const [proposalError, setProposalError] = useState<string | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [confirmDone, setConfirmDone] = useState(false);
+  const [ownStepOpen, setOwnStepOpen] = useState(false);
+  const [ownStepText, setOwnStepText] = useState("");
   const proposalSeq = useRef(0);
   const speech = useSpeech(state.settings.display.speechRate);
   const noteVoice = useVoiceInput((spoken) => setNoteText((current) => `${current} ${spoken}`.trim()));
@@ -159,15 +161,50 @@ export function NowView() {
       {task.note ? <p className="hint">{task.note}</p> : null}
 
       <div className="row row--wrap">
-        {state.settings.display.readAloud && speech.supported ? (
+        {speech.supported ? (
           <button type="button" className="btn btn--quiet" onClick={() => speech.speak(task.title)}>
             <AppIcons.read size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.readAloud}
           </button>
         ) : null}
+        {task.note ? (
+          <button type="button" className="btn btn--quiet" onClick={() => speech.speak(task.note)}>
+            <AppIcons.read size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
+            Read the note
+          </button>
+        ) : null}
       </div>
 
       <p className="nextStep">{task.nextStep ? `First step: ${task.nextStep}` : "Add the smallest first step you can imagine."}</p>
+
+      {/* S2: writing your own first step is always available, assistant or not. */}
+      {ownStepOpen ? (
+        <form
+          className="row row--wrap inline-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const text = ownStepText.trim();
+            if (text.length === 0) return;
+            dispatch({ type: "addStep", id: task.id, text, source: "user" });
+            dispatch({ type: "setNextStep", id: task.id, text });
+            setOwnStepText("");
+            setOwnStepOpen(false);
+          }}
+        >
+          <label className="field field--grow">
+            <span>{ACTIONS.stepPlaceholder}</span>
+            <input
+              type="text"
+              value={ownStepText}
+              autoFocus
+              onChange={(event) => setOwnStepText(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn btn--primary" disabled={ownStepText.trim().length === 0}>
+            {ACTIONS.addStep}
+          </button>
+        </form>
+      ) : null}
 
       {task.steps.length > 0 ? (
         <ul className="steps">
@@ -270,6 +307,15 @@ export function NowView() {
             {ACTIONS.cantStart}
           </button>
         )}
+        <button
+          type="button"
+          className="btn btn--quiet"
+          aria-expanded={ownStepOpen}
+          onClick={() => setOwnStepOpen((open) => !open)}
+        >
+          <AppIcons.capture size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
+          {ACTIONS.addStep}
+        </button>
       </div>
 
       {suggestOpen && !assistantAllowed ? (

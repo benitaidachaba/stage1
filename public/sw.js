@@ -7,7 +7,7 @@
  * is left completely alone.
  */
 
-const CACHE = "small-steps-v1";
+const CACHE = "pocket-v1";
 const SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -26,6 +26,33 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
+  );
+});
+
+/**
+ * Notification actions (PRD R2): Done, Later and Can't answer a nudge without
+ * opening the app. The click is posted to every client; the app, if open,
+ * applies it to the store and logs it. If no client is open there is nothing
+ * to apply it to — local state lives in the page, so the answer waits for the
+ * next visit in the log instead.
+ */
+self.addEventListener("notificationclick", (event) => {
+  const action = event.action; // "done" | "later" | "cant" | undefined (body click)
+  const taskId = event.notification.data && event.notification.data.taskId;
+  event.notification.close();
+
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const message = { kind: "notification-action", action, taskId };
+      if (clientList.length > 0) {
+        for (const client of clientList) client.postMessage(message);
+        if (clientList[0].focus) await clientList[0].focus();
+        return;
+      }
+      // Nobody home: opening the app is still better than losing the tap.
+      await self.clients.openWindow("/");
+    })(),
   );
 });
 

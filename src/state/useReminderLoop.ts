@@ -68,10 +68,37 @@ export function useReminderLoop(
     return granted;
   }, []);
 
+  /**
+   * R2: notification actions. Done, Later and Can't answer a nudge from the
+   * notification itself. The service worker forwards the tap here; the store
+   * applies it like any other decision and the log records it.
+   */
+  const dispatchRef = useRef(dispatch);
+  useEffect(() => {
+    dispatchRef.current = dispatch;
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { kind?: string; action?: string; taskId?: string } | null;
+      if (!data || data.kind !== "notification-action" || !data.taskId) return;
+      if (data.action === "done") {
+        dispatchRef.current({ type: "complete", id: data.taskId });
+      } else if (data.action === "later") {
+        dispatchRef.current({ type: "snooze", id: data.taskId, minutes: 60 });
+      } else if (data.action === "cant") {
+        dispatchRef.current({ type: "skipToday", id: data.taskId });
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, []);
+
   useEffect(() => {
     if (!hydrated) return;
 
-    const run = () => {
+    const run = async () => {
       const latest = stateRef.current;
       const now = new Date();
       const mayNotify = readNotificationPermission();
@@ -94,7 +121,27 @@ export function useReminderLoop(
         }
 
         try {
-          new window.Notification(delivery.title, { body: delivery.body, tag: nudge.task.id });
+          // Three one-tap answers, straight from the notification (PRD R2).
+          // Where action buttons are unsupported, the plain Notification still
+          // shows and the body click opens the app; in-app lines always work.
+          const registration =
+            typeof navigator.serviceWorker !== "undefined"
+              ? await navigator.serviceWorker.getRegistration()
+              : undefined;
+          if (registration) {
+            await registration.showNotification(delivery.title, {
+              body: delivery.body,
+              tag: nudge.task.id,
+              data: { taskId: nudge.task.id },
+              actions: [
+                { action: "done", title: "Done" },
+                { action: "later", title: "Later" },
+                { action: "cant", title: "Can't" },
+              ],
+            } as NotificationOptions);
+          } else {
+            new window.Notification(delivery.title, { body: delivery.body, tag: nudge.task.id });
+          }
         } catch (error) {
           dispatch(
             skippedDeliveryAction(

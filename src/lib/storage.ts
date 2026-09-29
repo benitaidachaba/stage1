@@ -230,6 +230,7 @@ function coerceSettings(raw: unknown): Settings {
         background === "white" || background === "dark" || background === "contrast" ? background : "cream",
       reduceMotion: bool(display.reduceMotion, base.display.reduceMotion),
       simplifyLayout: bool(display.simplifyLayout, base.display.simplifyLayout),
+      lowEnergyMode: bool(display.lowEnergyMode, base.display.lowEnergyMode),
       assistantEnabled: bool(display.assistantEnabled, base.display.assistantEnabled),
       speechRate: clampNumber(numOrNull(display.speechRate), 0.5, 2, base.display.speechRate),
       sounds: bool(display.sounds, base.display.sounds),

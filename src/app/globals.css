@@ -6,27 +6,36 @@
  * those instead of hard-coding a size, so a change in settings is a change
  * everywhere.
  *
- * Brand: modern and minimalist, warm. Generous spacing, typography-led, one
- * accent colour reserved for callouts. Status is always icon + colour + text,
- * never colour alone.
+ * Brand: "Pocket" — warm cream ground, a deep berry accent, near-black ink.
+ * Modern and minimalist. Generous spacing, typography-led, one accent colour
+ * reserved for callouts and primary actions. Status is always icon + colour +
+ * text, never colour alone.
+ *
+ * Layout: mobile-first. On phones the shell is edge-to-edge with a fixed
+ * bottom tab bar and a floating capture button, exactly like the Pocket
+ * screens; from 48rem up it becomes the same centred column the desktop had,
+ * with the tab bar returning to the top of the content.
  */
 
 :root {
-  /* Cream: the warm default. */
-  --background: #faf7f2;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --ink: #26221d;
-  --ink-soft: #6b645b;
-  --line: #e6e0d6;
-  --accent: #2f6d5a;
-  --accent-ink: #ffffff;
-  --focus-ring: #1a6bff;
+  /* Pocket palette. Cream ground, berry accent, near-black ink. */
+  --background: #f2e4d0;
+  --surface: #fdfaf5;
+  --surface-raised: #fdfaf5;
+  --ink: #2a1018;
+  --ink-soft: #7d6a70;
+  --line: #e2d2be;
+  --accent: #6e1734;
+  --accent-ink: #fdfaf5;
+  --focus-ring: #2a1018;
+
+  /* Support tint from the palette: rose-sand, used for gentle callouts. */
+  --accent-tint: #c8a49f;
 
   /* Status colours. Each is always paired with a glyph and a word. */
-  --status-inbox: #6b645b;
-  --status-today: #2f6d5a;
-  --status-scheduled: #4a6d8c;
+  --status-inbox: #7d6a70;
+  --status-today: #6e1734;
+  --status-scheduled: #8a4a5e;
   --status-now: #a2703a;
   --status-done: #5d7d43;
   --status-rescheduled: #8a5a83;
@@ -43,29 +52,32 @@
 html[data-background="white"] {
   --background: #ffffff;
   --surface: #ffffff;
-  --surface-raised: #f7f7f8;
-  --ink: #1c1c1e;
-  --ink-soft: #5f5f66;
-  --line: #e3e3e8;
+  --surface-raised: #faf3e9;
+  --ink: #2a1018;
+  --ink-soft: #7d6a70;
+  --line: #eee2d2;
+  --accent: #6e1734;
+  --accent-tint: #c8a49f;
 }
 
 html[data-background="dark"] {
-  --background: #141317;
-  --surface: #1d1c22;
-  --surface-raised: #26252c;
-  --ink: #ece9e4;
-  --ink-soft: #a9a4a0;
-  --line: #37353e;
-  --accent: #8fc0ad;
-  --accent-ink: #12160f;
-  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 28px rgb(0 0 0 / 35%);
-  --status-inbox: #a9a4a0;
-  --status-today: #8fc0ad;
-  --status-scheduled: #9ab8d6;
+  --background: #2a1018;
+  --surface: #3a1a24;
+  --surface-raised: #461f2b;
+  --ink: #f2e4d0;
+  --ink-soft: #c8a49f;
+  --line: #59303c;
+  --accent: #c8a49f;
+  --accent-ink: #2a1018;
+  --accent-tint: #6e1734;
+  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 10px 28px rgb(0 0 0 / 40%);
+  --status-inbox: #c8a49f;
+  --status-today: #e7b9c4;
+  --status-scheduled: #d8a8b8;
   --status-now: #d8a86e;
   --status-done: #a8c98a;
   --status-rescheduled: #c9a3c4;
-  --status-dropped: #8c8478;
+  --status-dropped: #b09a9e;
 }
 
 html[data-background="contrast"] {
@@ -75,11 +87,12 @@ html[data-background="contrast"] {
   --ink: #000000;
   --ink-soft: #1c1c1c;
   --line: #000000;
-  --accent: #00432e;
+  --accent: #6e1734;
   --accent-ink: #ffffff;
+  --accent-tint: #c8a49f;
   --shadow: none;
   --status-inbox: #1c1c1c;
-  --status-today: #00432e;
+  --status-today: #6e1734;
   --status-scheduled: #00304f;
   --status-now: #5c3200;
   --status-done: #26520f;
@@ -102,7 +115,9 @@ html[data-font="system"] {
 }
 
 :root {
-  --shadow: 0 1px 2px rgb(20 18 16 / 8%), 0 8px 24px rgb(20 18 16 / 6%);
+  --shadow: 0 1px 2px rgb(42 16 24 / 10%), 0 8px 24px rgb(42 16 24 / 8%);
+  --nav-h: 4.4rem;
+  --fab-gap: 1rem;
 }
 
 * {
@@ -113,7 +128,7 @@ html[data-font="system"] {
 
 html {
   height: 100%;
-  /* Every rem in the app moves with the text-size setting. */
+  /* Every rem here moves with the text-size setting. */
   font-size: calc(100% * var(--font-scale));
   -webkit-text-size-adjust: 100%;
 }
@@ -125,7 +140,7 @@ body {
 }
 
 body {
-  min-height: 100%;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   color: var(--ink);
@@ -153,7 +168,6 @@ html[data-reduce-motion="true"] *::after {
   *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
   }
 }
 
@@ -183,7 +197,8 @@ h3 {
   width: 100%;
   max-width: 60rem;
   margin: 0 auto;
-  padding: 0 var(--space) calc(var(--space) * 4);
+  /* Mobile-first: the fixed bottom bar reserves its own height. */
+  padding: 0 var(--space) calc(var(--nav-h) + var(--fab-gap) * 2);
   display: flex;
   flex-direction: column;
   gap: calc(var(--space) * 1.25);
@@ -197,9 +212,9 @@ h3 {
   z-index: 30;
   margin-inline: calc(-1 * var(--space));
   padding-inline: var(--space);
-  background: color-mix(in srgb, var(--background) 88%, transparent);
+  background: color-mix(in srgb, var(--background) 90%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .appBarInner {
@@ -235,6 +250,7 @@ h3 {
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .tagline {
@@ -369,56 +385,82 @@ a.menuItem:hover {
   gap: calc(var(--space) * 1.5);
 }
 
+/* ------------------------------------------------------- navigation -- */
+
+/*
+ * Mobile-first navigation. On phones this is the Pocket bottom bar: five
+ * icon-plus-word tabs, fixed, full-bleed, safe-area aware. The desktop rule
+ * at the end of this file returns the same bar to the top of the column.
+ */
 .tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 35;
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  border-bottom: 2px solid var(--line);
-  padding-bottom: 0.55rem;
+  justify-content: space-around;
+  align-items: stretch;
+  padding: 0.5rem 0.4rem calc(0.5rem + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
 .tab {
   font: inherit;
-  font-weight: 600;
-  display: inline-flex;
+  font-weight: 500;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.6rem 1.1rem;
-  border: 2px solid transparent;
-  border-radius: 999px;
+  gap: 0.2rem;
+  padding: 0.35rem 0.2rem;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
   /* The brief's floor for tap targets. */
   min-height: 48px;
   min-width: 48px;
+  font-size: 0.68rem;
 }
 
 .tab svg {
   flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .tab:hover {
-  background: var(--surface);
   color: var(--ink);
+  background: transparent;
 }
 
+/* The active tab wears the accent, exactly like the screens. */
 .tab--on {
-  background: var(--ink);
-  color: var(--background);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .tabCount {
+  position: absolute;
+  translate: 0.9rem -0.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.4rem;
-  margin-left: 0.4rem;
-  padding: 0 0.35rem;
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 0.85rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.tab {
+  position: relative;
 }
 
 .storageWarning {
@@ -427,6 +469,29 @@ a.menuItem:hover {
   border-radius: var(--radius);
   background: var(--surface);
   font-weight: 600;
+}
+
+/* Floating capture button: capture always one tap away (Pocket screens). */
+.fab {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: calc(var(--nav-h) + var(--fab-gap) + env(safe-area-inset-bottom));
+  z-index: 34;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 14px rgb(110 23 52 / 32%);
+  cursor: pointer;
+}
+
+.fab:hover {
+  filter: brightness(1.08);
 }
 
 /* --------------------------------------------------------------- pieces -- */
@@ -499,11 +564,10 @@ select:disabled {
 
 .check {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.55rem;
   cursor: pointer;
   min-height: 48px;
-  align-items: center;
 }
 
 .check input[type="checkbox"] {
@@ -657,16 +721,33 @@ select:disabled {
 
 /* -------------------------------------------------------------- capture -- */
 
+/*
+ * Capture, mobile-first. On phones the always-visible CaptureBar is replaced
+ * by the FAB, which expands into this sheet pinned above the bottom bar.
+ * From 48rem up the inline CaptureBar returns (see the desktop rule).
+ */
 .capture {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.6rem;
   padding: var(--space);
-  border: 2px solid var(--ink);
+  border: 2px solid var(--accent);
   border-radius: var(--radius);
-  background: var(--surface-raised);
+  background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.captureSheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+  z-index: 33;
+  padding: 0.7rem var(--space) 0.9rem;
+  background: var(--background);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgb(42 16 24 / 14%);
 }
 
 .captureInput {
@@ -729,8 +810,8 @@ select:disabled {
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.9rem;
-  border: 2px solid var(--line);
-  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-radius: 16px;
   background: var(--surface);
 }
 
@@ -742,7 +823,7 @@ select:disabled {
 }
 
 .cardTitle {
-  font-weight: 650;
+  font-weight: 600;
   font-size: 1.02rem;
   overflow-wrap: anywhere;
 }
@@ -781,10 +862,11 @@ select:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  min-height: 16rem;
   padding: calc(var(--space) * 1.25);
-  border: 2px solid var(--ink);
-  border-radius: var(--radius);
-  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
   box-shadow: var(--shadow);
   touch-action: none;
   user-select: none;
@@ -827,7 +909,7 @@ select:disabled {
 
 .triageTitle {
   font-size: 1.25rem;
-  font-weight: 650;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
@@ -844,7 +926,7 @@ select:disabled {
 }
 
 .nowTitle {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -855,8 +937,8 @@ select:disabled {
 
 .stoppedNote {
   padding: 0.7rem 0.9rem;
-  border-left: 4px solid var(--status-now);
-  background: var(--surface-raised);
+  border-left: 4px solid var(--accent-tint);
+  background: color-mix(in srgb, var(--accent-tint) 26%, var(--surface));
   border-radius: 0 var(--radius) var(--radius) 0;
 }
 
@@ -921,7 +1003,7 @@ select:disabled {
   gap: 1rem;
   padding: calc(var(--space) * 1.5);
   border: 2px solid var(--ink);
-  border-radius: var(--radius);
+  border-radius: 22px;
   background: var(--surface-raised);
   box-shadow: var(--shadow);
 }
@@ -944,7 +1026,7 @@ select:disabled {
   min-height: 48px;
   padding: 0.6rem 0.9rem;
   border: 2px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 14px;
   background: var(--surface);
   cursor: pointer;
 }
@@ -988,7 +1070,7 @@ select:disabled {
 }
 
 .swatch--cream {
-  background: #faf7f2;
+  background: #f2e4d0;
 }
 
 .swatch--white {
@@ -996,7 +1078,7 @@ select:disabled {
 }
 
 .swatch--dark {
-  background: #141317;
+  background: #2a1018;
 }
 
 .swatch--contrast {
@@ -1019,7 +1101,7 @@ select:disabled {
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.55rem 0.7rem;
-  border: 2px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
 }
@@ -1066,7 +1148,7 @@ select:disabled {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: var(--space);
+  bottom: calc(var(--nav-h) + var(--fab-gap));
   transform: translateX(-50%);
   z-index: 50;
   display: flex;
@@ -1096,14 +1178,159 @@ html[data-simplify="true"] .bucket:has(.card) ~ .bucket {
   display: none;
 }
 
-@media (max-width: 34rem) {
+/* ------------------------------------------------------------ p0 additions -- */
+
+/* Low-energy mode banner: one line, one way out, no nagging. */
+.energyBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: var(--space);
+  border-left: 4px solid var(--accent);
+  background: var(--surface-raised);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.energyBanner p {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+/* The Daily Reset card stack: batches of three, never a wall. */
+.resetCallout .cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Log filters row. */
+.logFilters {
+  align-items: flex-end;
+}
+
+.logFilters .field {
+  min-width: 9rem;
+}
+
+/* Area editor rows in settings. */
+.areaEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.areaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.areaForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: var(--space);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.swatchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.swatchBtn--on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--background) inset;
+}
+
+.bookmarklet {
+  align-self: flex-start;
+  text-decoration: none;
+  display: inline-flex;
+}
+
+/* The estimate chip row keeps its hands off the card's own spacing. */
+.card .row[aria-label] .hint {
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ desktop -- */
+
+/*
+ * From 48rem the Pocket phone layout relaxes into the centred desktop column:
+ * the tab bar returns to the top of the content, the capture bar is inline
+ * again, and the FAB goes away — same palette, same type, same components.
+ */
+@media (min-width: 48rem) {
   .shell {
-    padding-inline: 0.8rem;
+    padding-bottom: calc(var(--space) * 4);
   }
 
-  .appBar {
-    margin-inline: -0.8rem;
-    padding-inline: 0.8rem;
+  .tabs {
+    position: static;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    padding: 0 0 0.55rem;
+    border-top: none;
+    border-bottom: 2px solid var(--line);
+    background: transparent;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    flex-direction: row;
+    gap: 0.45rem;
+    padding: 0.6rem 1.1rem;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    font-size: inherit;
+    font-weight: 600;
+  }
+
+  .tab--on {
+    background: var(--ink);
+    color: var(--background);
+  }
+
+  .tabCount {
+    position: static;
+    translate: none;
+    margin-left: 0.4rem;
+    font-size: 0.85rem;
+  }
+
+  .fab,
+  .captureSheet {
+    display: none;
+  }
+
+  .capture {
+    display: flex;
+  }
+
+  .tagline {
+    display: block;
+  }
+}
+
+@media (max-width: 47.99rem) {
+  /* On phones the inline bar yields to the FAB and its sheet. */
+  .captureInline {
+    display: none;
   }
 
   .tagline {
@@ -1112,11 +1339,6 @@ html[data-simplify="true"] .bucket:has(.card) ~ .bucket {
 
   .profileName {
     display: none;
-  }
-
-  .tab span {
-    /* Tabs stay icon-forward on small screens; labels remain for AT via text. */
-    font-size: 0.8rem;
   }
 
   .cardHead,

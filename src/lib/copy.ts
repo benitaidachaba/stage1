@@ -55,10 +55,21 @@ export const RESET = {
   heading: "Daily reset",
   intro: "A short look at what moved, and what gets a new home. Three minutes, no more.",
   run: "Do the reset",
+  reset: "Keep for today",
+  dropLabel: "Let it go",
   needsHome: "Needs a new home",
   needsHomeHint: "The date went by. Tomorrow is a perfectly good answer.",
   empty: "Nothing needs a new home right now.",
   finished: "That is everything. The day is set up.",
+  keep: "Keep",
+  move: "Move",
+  moveToday: "Do today",
+  moveTomorrow: "Tomorrow",
+  moveNextWeek: "Next week",
+  moveNoDate: "Someday",
+  moveHeading: "When instead?",
+  batchHint: (shown: number, total: number) =>
+    `${shown} of ${total} — a few at a time, no rush.`,
 } as const;
 
 // ------------------------------------------------------------------- copy --
@@ -132,8 +143,8 @@ export function quietHoursLine(start: string, end: string): string {
 // -------------------------------------------------------------------- UI --
 
 export const UI = {
-  appName: "Small Steps",
-  tagline: "Capture in seconds, decide when you have the energy.",
+  appName: "Pocket",
+  tagline: "Say it once. Pocket holds it, reminds you, and never lets it go quiet.",
   loading: "Opening your list…",
   captureLabel: "What is on your mind?",
   capturePlaceholder: "Email the landlord tomorrow at 4pm, 20 minutes #home",
@@ -165,6 +176,17 @@ export const UI = {
   searchPlaceholder: "Search — spelling does not have to be exact",
   searchEmpty: "Nothing matched. Shorter words often find more.",
   searchHint: "Matches close spellings and sound-alikes.",
+  logFrom: "From",
+  logTo: "Until",
+  logArea: "Area",
+  logEverything: "Everything",
+  logClearDates: "Clear dates",
+  energyHeading: "Low-energy mode",
+  energyOn: "Low-energy mode is on. Only quick, easy tasks are shown.",
+  energyOffHint: "A toggle and one tap: Today shows only small things until you turn it off.",
+  energyCheckIn: "I'm low on energy",
+  energyTurnOff: "Turn it off",
+  energyEmpty: "Nothing quick is left today. Resting is allowed — nothing here will argue.",
 } as const;
 
 export const ACTIONS = {
@@ -208,6 +230,14 @@ export const ACTIONS = {
   readAloud: "Read aloud",
   stopReading: "Stop reading",
   nextSuggestion: "A reasonable next: ",
+  estimate: "Roughly how long?",
+  estimateNone: "No estimate",
+  snooze: "Snooze",
+  snoozeHeading: "Park it for how long?",
+  snooze15: "15 min",
+  snooze60: "1 hour",
+  snoozeEvening: "This evening",
+  snoozeMorning: "Tomorrow morning",
 } as const;
 
 // -------------------------------------------------------------- settings --
@@ -231,6 +261,9 @@ export const SETTINGS = {
   assistantConsent:
     "When used, only the task's own text is sent to the assistant, just to write one small first step. Nothing else leaves this device.",
   speechHeading: "Voice",
+  energyModeHeading: "Low-energy mode",
+  energyModeNote:
+    "A one-tap check-in, never a nag. While it is on, Today and the Now suggestion show only quick, easy tasks.",
   nudgeHeading: "How nudges reach you",
   remindersOn: "Allow nudges at all",
   reminderTime: "Daily nudging hour",
@@ -320,6 +353,8 @@ export const LOG_LABEL: Record<EventType, string> = {
   "focus.started": "Now view opened",
   "focus.ended": "Now view left",
   "reset.completed": "Daily reset done",
+  "reset.processed": "Reset decision",
+  "energy.checkin": "Low-energy check-in",
   "area.created": "Area created",
   "area.edited": "Area changed",
   "area.removed": "Area removed",

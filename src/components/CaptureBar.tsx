@@ -41,6 +41,25 @@ export function CaptureBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // C5: the bookmarklet and share links arrive as /?capture=<text>. The text is
+  // placed in the field, never saved unseen — capture always stays reviewable.
+  // This runs once on mount; setting the field here is the whole point, and the
+  // alternative (lazy state init) cannot read the URL during hydration safely.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const incoming = params.get("capture");
+    if (incoming && incoming.trim().length > 0) {
+      sourceRef.current = "typed";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setText(incoming.trim());
+      inputRef.current?.focus();
+      params.delete("capture");
+      const rest = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    }
+  }, []);
+
   const trimmed = text.trim();
   const preview = trimmed.length > 0 ? parseCapture(trimmed, now) : null;
   const previewParts = preview

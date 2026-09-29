@@ -586,3 +586,56 @@ describe("app level", () => {
     expect(state.focusSession).toBeNull();
   });
 });
+
+describe("the daily reset card stack", () => {
+  function staleTask(): AppState {
+    const start = capture(base(), "The thing that slipped");
+    const id = start.tasks[0].id;
+    const yesterday = new Date(2026, 4, 11, 9, 0, 0);
+    return reduce(start, { type: "triage", id, status: "scheduled", dueAt: yesterday.toISOString() }, NOW);
+  }
+
+  it("gives a stale task a new date when the card is processed", () => {
+    const start = staleTask();
+    const id = start.tasks[0].id;
+    const state = reduce(start, { type: "reset.process", id, decision: "tomorrow" }, NOW);
+
+    expect(state.tasks[0].status).toBe("scheduled");
+    expect(state.tasks[0].dueAt).not.toBeNull();
+    expect(needsNewHome(state, NOW)).toHaveLength(0);
+    expect(lastEvent(state).type).toBe("reset.processed");
+  });
+
+  it("can park a stale task as someday without shame, or let it go", () => {
+    const parkedFrom = staleTask();
+    const parked = reduce(parkedFrom, {
+      type: "reset.process",
+      id: parkedFrom.tasks[0].id,
+      decision: "someday",
+    }, NOW);
+    expect(parked.tasks[0].status).toBe("inbox");
+    expect(parked.tasks[0].dueAt).toBeNull();
+
+    const droppedFrom = staleTask();
+    const dropped = reduce(droppedFrom, {
+      type: "reset.process",
+      id: droppedFrom.tasks[0].id,
+      decision: "drop",
+    }, NOW);
+    expect(dropped.tasks[0].status).toBe("dropped");
+    expect(dropped.tasks[0].resolution).toBe("dropped");
+  });
+
+  it("records a low-energy check-in as its own event, and undo takes it back", () => {
+    const start = capture(base(), "Anything");
+    const checked = reduce(start, { type: "energy.checkin" }, NOW);
+    expect(checked.settings.display.lowEnergyMode).toBe(true);
+    expect(lastEvent(checked).type).toBe("energy.checkin");
+
+    const off = reduce(checked, { type: "energy.checkin" }, at(1));
+    expect(off.settings.display.lowEnergyMode).toBe(false);
+
+    const undone = reduce(off, { type: "undo" }, at(2));
+    expect(undone.settings.display.lowEnergyMode).toBe(true);
+  });
+});

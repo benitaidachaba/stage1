@@ -40,6 +40,7 @@ export function defaultSettings(): Settings {
       background: "cream",
       reduceMotion: false,
       simplifyLayout: false,
+      lowEnergyMode: false,
       assistantEnabled: false,
       speechRate: 1,
       sounds: false,

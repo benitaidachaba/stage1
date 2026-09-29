@@ -119,6 +119,8 @@ export type EventType =
   | "focus.started"
   | "focus.ended"
   | "reset.completed"
+  | "reset.processed"
+  | "energy.checkin"
   | "area.created"
   | "area.edited"
   | "area.removed"
@@ -245,6 +247,11 @@ export interface DisplaySettings {
   reduceMotion: boolean;
   /** Hides optional metadata so each card shows one thing. */
   simplifyLayout: boolean;
+  /**
+   * Low-energy mode: Today and the Now suggestion show only quick, easy tasks
+   * until the person switches it off. A deliberate, one-tap check-in.
+   */
+  lowEnergyMode: boolean;
   /** Whether the app may send task text to the assistant for first steps. */
   assistantEnabled: boolean;
   /** Speed multiplier for text-to-speech. */
@@ -395,6 +402,8 @@ export type Action =
   | { type: "focus.timer"; minutes: number | null }
   | { type: "focus.end" }
   | { type: "reset.run"; at: string }
+  | { type: "reset.process"; id: string; decision: "today" | "tomorrow" | "nextweek" | "someday" | "drop" }
+  | { type: "energy.checkin" }
   | { type: "area.add"; area: Omit<Area, "id" | "createdAt"> }
   | { type: "area.update"; id: string; patch: Partial<Omit<Area, "id" | "createdAt">> }
   | { type: "area.remove"; id: string }

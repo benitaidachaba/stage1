@@ -935,6 +935,89 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       break;
     }
 
+    case "reset.process": {
+      // One card of the reset stack, resolved. Every option is a deliberate
+      // answer — including "someday", which is a home and not a hiding place.
+      const result = applyToTask(state, action.id, (task) => {
+        const base: Partial<Task> = {
+          status: "scheduled",
+          resolution: null,
+          lastDecisionAt: at,
+          updatedAt: at,
+          reminder: { ...task.reminder, enabled: false, nextFireAt: null },
+        };
+        switch (action.decision) {
+          case "today": {
+            const today = new Date(now);
+            today.setHours(17, 0, 0, 0);
+            return { ...task, ...base, status: "today", dueAt: today.toISOString() };
+          }
+          case "tomorrow": {
+            const tomorrow = addDays(now, 1);
+            tomorrow.setHours(9, 0, 0, 0);
+            return { ...task, ...base, dueAt: tomorrow.toISOString() };
+          }
+          case "nextweek": {
+            const nextWeek = addDays(now, 7);
+            nextWeek.setHours(9, 0, 0, 0);
+            return { ...task, ...base, dueAt: nextWeek.toISOString() };
+          }
+          case "someday":
+            // Inbox with no date: kept, visible, under no obligation.
+            return { ...task, ...base, status: "inbox", dueAt: null };
+          case "drop":
+            return {
+              ...task,
+              status: "dropped",
+              resolution: "dropped",
+              droppedAt: at,
+              lastDecisionAt: at,
+              updatedAt: at,
+              reminder: { ...task.reminder, enabled: false, nextFireAt: null },
+            };
+        }
+      }, at);
+      if (!result.before) break;
+      snapshot("giving a task a new home in the daily reset");
+      const decisions: Record<typeof action.decision, string> = {
+        today: "chosen for today",
+        tomorrow: "moved to tomorrow",
+        nextweek: "moved to next week",
+        someday: "set aside as someday",
+        drop: "let go",
+      };
+      log(
+        "reset.processed",
+        action.id,
+        `“${result.before.title}” was ${decisions[action.decision]} during the daily reset.`,
+        { decision: action.decision },
+      );
+      state = result.state;
+      break;
+    }
+
+    case "energy.checkin": {
+      // The one-tap check-in. Turning the mode on is logged; turning it off is
+      // an ordinary settings change and does not need its own event.
+      const turningOn = !state.settings.display.lowEnergyMode;
+      snapshot(turningOn ? "switching on low-energy mode" : "switching off low-energy mode");
+      state = {
+        ...state,
+        settings: {
+          ...state.settings,
+          display: { ...state.settings.display, lowEnergyMode: turningOn },
+        },
+      };
+      log(
+        "energy.checkin",
+        null,
+        turningOn
+          ? "Low-energy mode is on. Today shows the quick, easy things only."
+          : "Low-energy mode is off. The full list is back.",
+      );
+      break;
+    }
+
     case "area.add": {
       snapshot("creating an area");
       const area = {

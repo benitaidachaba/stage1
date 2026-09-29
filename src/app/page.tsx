@@ -28,16 +28,16 @@ const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
 ];
 
 /**
- * The shell: a sticky header with the profile and quick actions, a capture box
- * that is always within reach, five sections, and the undo offer that is
- * visible whenever there is something to undo.
+ * The shell, drawn from the Pocket screens: a slim app bar, five sections and
+ * a bottom tab bar on phones with a floating capture button; the same centred
+ * column with top tabs on desktop. Capture is one tap away in both layouts.
  *
- * Nothing here decides what a task means — every panel reads the same store, so
- * switching tabs costs nothing and loses nothing.
+ * Nothing here decides what a task means — every panel reads the same store.
  */
 export default function Home() {
   const { state, storageError } = useAppStore();
   const [tab, setTab] = useState<Tab>("now");
+  const [sheetOpen, setSheetOpen] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
   if (!state.hydrated) {
@@ -49,9 +49,15 @@ export default function Home() {
   }
 
   const inboxCount = inbox(state).length;
+  const onboarded = state.settings.onboarded;
 
   function jumpToCapture() {
-    captureRef.current?.querySelector("input")?.focus();
+    if (!onboarded) return;
+    if (window.matchMedia("(min-width: 48rem)").matches) {
+      captureRef.current?.querySelector("input")?.focus();
+    } else {
+      setSheetOpen(true);
+    }
   }
 
   return (
@@ -60,9 +66,24 @@ export default function Home() {
       <AppHeader onJumpToCapture={jumpToCapture} />
       <Onboarding />
 
-      <div ref={captureRef}>
+      {/* Capture. Inline on desktop; on phones the FAB expands the sheet. */}
+      <div ref={captureRef} className="captureInline">
         <CaptureBar />
       </div>
+      <button
+        type="button"
+        className="fab"
+        aria-label="Capture a task"
+        aria-expanded={sheetOpen}
+        onClick={() => setSheetOpen((open) => !open)}
+      >
+        <AppIcons.capture size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
+      </button>
+      {sheetOpen ? (
+        <div className="captureSheet">
+          <CaptureBar />
+        </div>
+      ) : null}
 
       <nav className="tabs" aria-label="Main sections">
         {TABS.map((entry) => {
@@ -73,7 +94,10 @@ export default function Home() {
               type="button"
               className={`tab${tab === entry.key ? " tab--on" : ""}`}
               aria-current={tab === entry.key ? "page" : undefined}
-              onClick={() => setTab(entry.key)}
+              onClick={() => {
+                setTab(entry.key);
+                setSheetOpen(false);
+              }}
             >
               <Icon size={ICON_SIZE.inline} weight={tab === entry.key ? "fill" : "regular"} aria-hidden="true" />
               {entry.label}

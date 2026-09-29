@@ -1,7 +1,7 @@
 {
-  "name": "Small Steps",
-  "short_name": "Small Steps",
-  "description": "Capture a thought in seconds, decide later, and nothing you skip is hidden from you.",
+  "name": "Pocket",
+  "short_name": "Pocket",
+  "description": "Say it once. Pocket holds it, reminds you, and never lets it go quiet.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
