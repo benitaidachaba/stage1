@@ -1,0 +1,19 @@
+{
+  "name": "Small Steps",
+  "short_name": "Small Steps",
+  "description": "Capture a thought in seconds, decide later, and nothing you skip is hidden from you.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf7",
+  "theme_color": "#fbfaf7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 24x16",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ]
+}

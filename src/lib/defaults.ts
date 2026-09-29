@@ -1,0 +1,104 @@
+import type { PersistedState, Reminder, Settings, Task, AppState } from "./types";
+
+/** Bumped when the persisted shape changes, so migrations can run. */
+export const SCHEMA_VERSION = 1;
+
+export const STORAGE_KEY = "brainfriendly.tasks.v1";
+
+/** How long the undo toast stays live. Long on purpose: missed taps are normal. */
+export const UNDO_WINDOW_MS = 15_000;
+export const UNDO_STACK_LIMIT = 25;
+
+export function emptyReminder(): Reminder {
+  return {
+    enabled: false,
+    status: "scheduled",
+    stepIndex: 0,
+    nextFireAt: null,
+    lastChannel: null,
+    fireCount: 0,
+    lastFiredAt: null,
+    stoppedAt: null,
+  };
+}
+
+export function defaultSettings(): Settings {
+  return {
+    displayName: "",
+    display: {
+      // Accessible by default: larger base text, generous leading, roomy tracking.
+      fontScale: 1.15,
+      lineHeight: 1.6,
+      letterSpacing: 0.01,
+      font: "system",
+      contrast: "default",
+      theme: "light",
+      reduceMotion: false,
+      simplifyLayout: false,
+      readAloud: false,
+    },
+    reminders: {
+      enabled: true,
+      leadMinutes: 10,
+      maxStep: 3,
+      quietHours: { enabled: true, start: "22:00", end: "07:00" },
+      browserNotifications: false,
+      emailNotifications: false,
+      emailAddress: "",
+      trustedPerson: false,
+      trustedPersonName: "",
+      trustedPersonContact: "",
+    },
+    ai: { breakdownEnabled: false },
+    captureDurationsMs: [],
+  };
+}
+
+/** A task that satisfies every invariant the app relies on. */
+export function makeTask(partial: Partial<Task> & { title?: string }, at: string): Task {
+  const title = (partial.title ?? "").trim();
+  return {
+    id: partial.id ?? "",
+    title: title.length > 0 ? title : "Untitled",
+    status: partial.status ?? "open",
+    resolution: partial.resolution ?? null,
+    createdAt: partial.createdAt ?? at,
+    updatedAt: partial.updatedAt ?? at,
+    dueAt: partial.dueAt ?? null,
+    estimateMinutes: partial.estimateMinutes ?? null,
+    energy: partial.energy ?? null,
+    nextStep: partial.nextStep ?? null,
+    notes: partial.notes ?? "",
+    tags: partial.tags ?? [],
+    microSteps: partial.microSteps ?? [],
+    reminder: partial.reminder ?? emptyReminder(),
+    rescheduleCount: partial.rescheduleCount ?? 0,
+    snoozeCount: partial.snoozeCount ?? 0,
+    completedAt: partial.completedAt ?? null,
+    droppedAt: partial.droppedAt ?? null,
+    dropReason: partial.dropReason ?? null,
+    lastDecisionAt: partial.lastDecisionAt ?? null,
+    archived: partial.archived ?? false,
+  };
+}
+
+export function emptyPersistedState(): PersistedState {
+  return { version: SCHEMA_VERSION, tasks: [], events: [], settings: defaultSettings() };
+}
+
+export function initialState(): AppState {
+  const persisted = emptyPersistedState();
+  return {
+    ...persisted,
+    hydrated: false,
+    focusSession: null,
+    undoStack: [],
+    storageError: null,
+  };
+}
+
+/**
+ * The snapshot React uses while rendering on the server and during hydration.
+ * It is a module constant so it is referentially stable.
+ */
+export const SERVER_STATE: AppState = initialState();
