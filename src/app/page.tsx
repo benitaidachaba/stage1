@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
+import { AppIcons, ICON_SIZE } from "@/components/icons";
 import { CaptureBar } from "@/components/CaptureBar";
 import { LogTimeline } from "@/components/LogTimeline";
 import { NowView } from "@/components/NowView";
@@ -17,24 +19,26 @@ import { useAppStore } from "@/state/AppStore";
 type Tab = "now" | "today" | "triage" | "log" | "settings";
 
 /** Five items, exactly as the brief allows. No sixth. */
-const TABS: Array<{ key: Tab; label: string }> = [
-  { key: "now", label: UI.nav.now },
-  { key: "today", label: UI.nav.today },
-  { key: "triage", label: UI.nav.triage },
-  { key: "log", label: UI.nav.log },
-  { key: "settings", label: UI.nav.settings },
+const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
+  { key: "now", label: UI.nav.now, icon: "now" },
+  { key: "today", label: UI.nav.today, icon: "today" },
+  { key: "triage", label: UI.nav.triage, icon: "triage" },
+  { key: "log", label: UI.nav.log, icon: "log" },
+  { key: "settings", label: UI.nav.settings, icon: "settings" },
 ];
 
 /**
- * The shell: a capture box that is always within reach, five sections, and the
- * undo offer that is visible whenever there is something to undo.
+ * The shell: a sticky header with the profile and quick actions, a capture box
+ * that is always within reach, five sections, and the undo offer that is
+ * visible whenever there is something to undo.
  *
  * Nothing here decides what a task means — every panel reads the same store, so
  * switching tabs costs nothing and loses nothing.
  */
 export default function Home() {
-  const { state, storageError, undoOffer, undo } = useAppStore();
+  const { state, storageError } = useAppStore();
   const [tab, setTab] = useState<Tab>("now");
+  const captureRef = useRef<HTMLDivElement>(null);
 
   if (!state.hydrated) {
     return (
@@ -46,26 +50,24 @@ export default function Home() {
 
   const inboxCount = inbox(state).length;
 
+  function jumpToCapture() {
+    captureRef.current?.querySelector("input")?.focus();
+  }
+
   return (
     <div className="shell">
       <ServiceWorkerRegistrar />
+      <AppHeader onJumpToCapture={jumpToCapture} />
       <Onboarding />
 
-      <header className="masthead">
-        <div className="row row--between">
-          <div>
-            <h1 className="wordmark">{UI.appName}</h1>
-            <p className="hint">{UI.tagline}</p>
-          </div>
-          {undoOffer ? (
-            <button type="button" className="btn" onClick={undo}>
-              {UI.nav.log ? "Undo" : "Undo"}
-            </button>
-          ) : null}
-        </div>
+      <div ref={captureRef}>
         <CaptureBar />
-        <nav className="tabs" aria-label="Main sections">
-          {TABS.map((entry) => (
+      </div>
+
+      <nav className="tabs" aria-label="Main sections">
+        {TABS.map((entry) => {
+          const Icon = AppIcons[entry.icon];
+          return (
             <button
               key={entry.key}
               type="button"
@@ -73,6 +75,7 @@ export default function Home() {
               aria-current={tab === entry.key ? "page" : undefined}
               onClick={() => setTab(entry.key)}
             >
+              <Icon size={ICON_SIZE.inline} weight={tab === entry.key ? "fill" : "regular"} aria-hidden="true" />
               {entry.label}
               {entry.key === "triage" && inboxCount > 0 ? (
                 <span className="tabCount" aria-label={`${inboxCount} in the inbox`}>
@@ -80,9 +83,9 @@ export default function Home() {
                 </span>
               ) : null}
             </button>
-          ))}
-        </nav>
-      </header>
+          );
+        })}
+      </nav>
 
       {storageError ? (
         <p className="storageWarning" role="status">

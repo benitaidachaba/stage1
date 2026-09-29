@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AppIcons, AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, BUCKETS, EMPTY, RESET, STATUS, UI } from "@/lib/copy";
 import { needsNewHome, nowTask, scheduledTasks, suggestedNext, todayTasks } from "@/lib/selectors";
 import { searchTasks } from "@/lib/search";
@@ -174,6 +175,10 @@ function TaskRow({ task }: { task: Task }) {
         {area ? (
           <span className="chip">
             <span className="areaDot" style={{ background: area.colour }} aria-hidden="true" />
+            {(() => {
+              const AreaGlyph = AREA_ICON_COMPONENTS[area.icon] ?? AREA_ICON_COMPONENTS.dot;
+              return <AreaGlyph size={14} weight="regular" aria-hidden="true" />;
+            })()}
             {area.name}
           </span>
         ) : null}
@@ -194,21 +199,26 @@ function TaskRow({ task }: { task: Task }) {
 
       <div className="row row--wrap">
         <button type="button" className="btn btn--primary" onClick={() => dispatch({ type: "start", id: task.id })}>
+          <AppIcons.start size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
           {ACTIONS.start}
         </button>
         {task.status !== "now" ? (
           <button type="button" className="btn" onClick={() => dispatch({ type: "complete", id: task.id })}>
+            <AppIcons.done size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.done}
           </button>
         ) : null}
         <button type="button" className="btn" onClick={() => dispatch({ type: "snooze", id: task.id, minutes: 60 })}>
+          <AppIcons.later size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {ACTIONS.later}
         </button>
         <button type="button" className="btn btn--quiet" onClick={() => dispatch({ type: "drop", id: task.id })}>
+          <AppIcons.drop size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {ACTIONS.drop}
         </button>
         {task.status === "done" || task.status === "dropped" || task.status === "rescheduled" ? (
           <button type="button" className="btn" onClick={() => dispatch({ type: "reopen", id: task.id })}>
+            <AppIcons.undo size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.restore}
           </button>
         ) : null}

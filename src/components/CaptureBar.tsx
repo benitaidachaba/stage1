@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
 import { describeDue, describeMinutes } from "@/lib/format";
 import { parseCapture } from "@/lib/parse";
@@ -114,10 +115,15 @@ export function CaptureBar() {
           voice.stop();
         }}
       >
-        <span aria-hidden="true">🎙</span>
+        {listening ? (
+          <AppIcons.listening size={ICON_SIZE.control} weight="fill" aria-hidden="true" />
+        ) : (
+          <AppIcons.voice size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
+        )}
       </button>
 
       <button type="submit" className="btn btn--primary" disabled={trimmed.length === 0}>
+        <AppIcons.capture size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
         {ACTIONS.save}
       </button>
 

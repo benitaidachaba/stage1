@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppIcons, AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, TRIAGE, UI } from "@/lib/copy";
 import { inbox } from "@/lib/selectors";
 import { describeMinutes } from "@/lib/format";
 import { useAppStore } from "@/state/AppStore";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { Area, AreaIcon, Task } from "@/lib/types";
-import { AREA_ICONS } from "@/lib/copy";
 
 /**
  * The Triage stack.
@@ -203,6 +203,7 @@ export function TriageStack() {
 
       <div className="row row--wrap">
         <button type="button" className="btn btn--primary" onClick={() => decide("right")}>
+          <AppIcons.done size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
           {TRIAGE.today}
         </button>
         <button
@@ -217,9 +218,11 @@ export function TriageStack() {
             }
           }}
         >
+          <AppIcons.later size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {TRIAGE.later}
         </button>
         <button type="button" className="btn btn--quiet" onClick={() => decide("up")}>
+          <AppIcons.drop size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {TRIAGE.drop}
         </button>
         <button
@@ -228,6 +231,7 @@ export function TriageStack() {
           onClick={undo}
           disabled={!undoOffer}
         >
+          <AppIcons.undo size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {ACTIONS.undo}
         </button>
       </div>
@@ -264,7 +268,10 @@ function AreaChips({ task }: { task: Task }) {
             dispatch({ type: "assignArea", id: task.id, areaId: task.areaId === area.id ? null : area.id })
           }
         >
-          <span aria-hidden="true">{AREA_ICONS[area.icon as AreaIcon] ?? "•"}</span>
+          {(() => {
+            const AreaGlyph = AREA_ICON_COMPONENTS[area.icon as AreaIcon] ?? AREA_ICON_COMPONENTS.dot;
+            return <AreaGlyph size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />;
+          })()}
           {area.name}
         </button>
       ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
 import { nextSuggestion, nowTask } from "@/lib/selectors";
 import { useAppStore } from "@/state/AppStore";
@@ -95,6 +96,7 @@ export function NowView() {
               className="btn btn--primary"
               onClick={() => dispatch({ type: "start", id: suggestion.id })}
             >
+              <AppIcons.start size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
               {ACTIONS.start}
             </button>
           </div>
@@ -159,6 +161,7 @@ export function NowView() {
       <div className="row row--wrap">
         {state.settings.display.readAloud && speech.supported ? (
           <button type="button" className="btn btn--quiet" onClick={() => speech.speak(task.title)}>
+            <AppIcons.read size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.readAloud}
           </button>
         ) : null}
@@ -206,12 +209,14 @@ export function NowView() {
       ) : (
         <div className="row row--wrap">
           <button type="button" className="btn" onClick={() => dispatch({ type: "focus.timer", minutes: DEFAULT_TIMER_MINUTES })}>
+            <AppIcons.timer size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.timerStart}
           </button>
         </div>
       )}
       {timerRunning ? (
         <button type="button" className="btn btn--quiet" onClick={stopTimer}>
+          <AppIcons.timer size={ICON_SIZE.control} weight="fill" aria-hidden="true" />
           {ACTIONS.timerStop}
         </button>
       ) : null}
@@ -247,17 +252,21 @@ export function NowView() {
 
       <div className="row row--wrap">
         <button type="button" className="btn btn--primary" onClick={complete}>
+          <AppIcons.done size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
           {ACTIONS.done}
         </button>
         <button type="button" className="btn" onClick={() => setNoteOpen((open) => !open)}>
+          <AppIcons.later size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
           {ACTIONS.notNow}
         </button>
         {assistantAllowed ? (
           <button type="button" className="btn" onClick={() => void askAssistant()}>
+            <AppIcons.start size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.cantStart}
           </button>
         ) : (
           <button type="button" className="btn" onClick={() => setSuggestOpen((open) => !open)}>
+            <AppIcons.start size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             {ACTIONS.cantStart}
           </button>
         )}
@@ -300,7 +309,7 @@ export function NowView() {
                 noteVoice.stop();
               }}
             >
-              <span aria-hidden="true">🎙</span>
+              <AppIcons.voice size={ICON_SIZE.control} weight="regular" aria-hidden="true" />
             </button>
           ) : null}
           <button type="submit" className="btn btn--primary">
