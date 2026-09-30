@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
-import { describeDue, describeMinutes, toDateTimeLocalValue } from "@/lib/format";
+import { describeDue, describeMinutes } from "@/lib/format";
 import { parseCapture } from "@/lib/parse";
 import { useAppStore } from "@/state/AppStore";
 import { useVoiceInput } from "@/hooks/useVoiceInput";

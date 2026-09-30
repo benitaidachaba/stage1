@@ -3,11 +3,11 @@
  *
  * All state lives in localStorage, so an offline app is still a fully working
  * app — this file only has to keep the shell itself loadable when the network
- * is not. Same-origin GETs are served stale-while-revalidate; everything else
- * is left completely alone.
+ * is not. Pages prefer the network with an offline fallback; static assets use
+ * stale-while-revalidate. Auth, API and RSC requests bypass this cache.
  */
 
-const CACHE = "pocket-v1";
+const CACHE = "pocket-v3";
 const SHELL = ["/", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -62,19 +62,30 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // Auth codes are single-use. They and API/RSC responses must reach the server.
+  if (url.pathname.startsWith("/auth/") || url.pathname.startsWith("/api/") ||
+      url.searchParams.has("code") || url.searchParams.has("auth") ||
+      url.searchParams.has("_rsc") || request.headers.get("RSC") === "1") return;
 
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
-      const cached = await cache.match(request, { ignoreSearch: true });
+      const cached = await cache.match(request);
 
       const refreshed = fetch(request)
         .then((response) => {
-          if (response.ok) cache.put(request, response.clone());
+          if (response.ok && !response.redirected &&
+              !/no-store|private/.test(response.headers.get("Cache-Control") || "")) {
+            event.waitUntil(cache.put(request, response.clone()));
+          }
           return response;
         })
         .catch(() => null);
 
+      if (request.mode === "navigate") {
+        const live = await refreshed;
+        if (live) return live;
+      }
       if (cached) {
         // Hand back what we have immediately; the network update lands next time.
         event.waitUntil(refreshed);

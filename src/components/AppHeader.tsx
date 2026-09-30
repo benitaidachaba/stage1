@@ -16,7 +16,7 @@ import { useAppStore } from "@/state/AppStore";
  * a visible label.
  */
 export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) {
-  const { state, undoOffer, undo, userEmail, syncing } = useAppStore();
+  const { state, undoOffer, undo, userEmail, syncing, syncError, lastSyncedAt } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -107,14 +107,14 @@ export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) 
                 </a>
                 <p className="menuItem menuItem--muted">
                   <AppIcons.out size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
-                  Data stays on this device
+                  {userEmail ? "Saved here and synced to your account" : "Data stays on this device"}
                 </p>
               </div>
             ) : null}
           </div>
-          {syncing ? (
+          {userEmail ? (
             <span className="hint" role="status">
-              Syncing…
+              {syncing ? "Syncing…" : syncError ? "Sync paused" : lastSyncedAt ? "Up to date" : "Ready to sync"}
             </span>
           ) : null}
           <AuthPanel email={userEmail} />

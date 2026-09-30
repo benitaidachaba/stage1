@@ -154,6 +154,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         ...action.state,
         tasks,
         hydrated: true,
+        undoStack: [],
         focusSession: null,
         storageError: null,
       };
@@ -1145,6 +1146,12 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       const name = action.areaId ? (state.areas.find((area) => area.id === action.areaId)?.name ?? "an area") : "no area";
       log("task.edited", action.id, `“${result.before.title}” is now in ${name}.`);
       state = result.state;
+      break;
+    }
+
+    case "sync.received": {
+      state = { ...state, ...action.state,
+        focusSession: state.focusSession && action.state.tasks.some((task) => task.id === state.focusSession?.taskId) ? state.focusSession : null };
       break;
     }
 

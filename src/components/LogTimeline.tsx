@@ -1,12 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, LOG_LABEL, UI } from "@/lib/copy";
 import { describeAgo } from "@/lib/format";
 import { eventsInArea, eventsInWindow } from "@/lib/selectors";
 import { useAppStore } from "@/state/AppStore";
-import type { AreaIcon } from "@/lib/types";
 
 const PAGE_SIZE = 40;
 
@@ -41,7 +39,7 @@ export function LogTimeline() {
   const taskIdsInArea = useMemo(() => {
     if (areaFilter === "") return null;
     return new Set(state.tasks.filter((task) => task.areaId === areaFilter).map((task) => task.id));
-  }, [state.tasks, state.areas, areaFilter]);
+  }, [state.tasks, areaFilter]);
 
   let filtered = newestFirst;
   if (taskId) filtered = filtered.filter((event) => event.taskId === taskId);
@@ -77,7 +75,6 @@ export function LogTimeline() {
             <select value={areaFilter} onChange={(event) => setAreaFilter(event.target.value)}>
               <option value="">{UI.logEverything}</option>
               {state.areas.map((area) => {
-                const AreaGlyph = AREA_ICON_COMPONENTS[area.icon as AreaIcon] ?? AREA_ICON_COMPONENTS.dot;
                 return (
                   <option key={area.id} value={area.id}>
                     {area.name}

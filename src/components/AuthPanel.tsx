@@ -2,32 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
-import { AppHeaderStrings, UI } from "@/lib/copy";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { authClient } from "@/lib/auth/client";
 import { useAppStore } from "@/state/AppStore";
 
-/**
- * Sign-in and account, in one small panel. Magic link only for now — no
- * passwords to forget. When Supabase is not configured this renders nothing
- * and the header keeps its local-only message.
- */
+/** Passwordless Neon sign-in with an email code, in the existing account panel. */
 export function AuthPanel({ email }: { email: string | null }) {
-  const supabase = getSupabaseBrowser();
+  const { authEnabled } = useAppStore();
   const [open, setOpen] = useState(false);
   const [address, setAddress] = useState("");
+  const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Close the menu on outside click or Escape, matching the profile menu.
   useEffect(() => {
     if (!open) return;
+    inputRef.current?.focus();
     const onPointerDown = (event: PointerEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
@@ -35,97 +33,84 @@ export function AuthPanel({ email }: { email: string | null }) {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, sent]);
 
-  async function sendLink() {
-    if (!supabase) return;
+  async function submit() {
+    if (busy) return;
     setBusy(true);
     setError(null);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: address.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setBusy(false);
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    setSent(true);
+    try {
+      if (sent) {
+        const { error } = await authClient.signIn.emailOtp({ email: address.trim(), otp: code.trim() });
+        if (error) { setError(error.message ?? "That code could not be used. Try a fresh code."); return; }
+        setOpen(false);
+        setSent(false);
+        setCode("");
+      } else {
+        const { error } = await authClient.emailOtp.sendVerificationOtp({ email: address.trim(), type: "sign-in" });
+        if (error) { setError(error.message ?? "The code could not be sent. Please try again."); return; }
+        setSent(true);
+      }
+    } catch {
+      setError("Could not connect to sign-in. Check your connection and try again.");
+    } finally { setBusy(false); }
   }
 
   async function signOut() {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setOpen(false);
+    setBusy(true);
+    setError(null);
+    try {
+      const { error } = await authClient.signOut();
+      if (error) { setError(error.message ?? "Could not sign out. Please try again."); return; }
+      setOpen(false);
+      setSent(false);
+      setCode("");
+    } catch { setError("Could not sign out. Please try again."); }
+    finally { setBusy(false); }
   }
 
-  if (!supabase) return null;
-
-  const initial = email ? email.charAt(0).toUpperCase() : "?";
-
+  if (!authEnabled) return null;
   return (
     <div className="profileWrap" ref={wrapRef}>
-      <button
-        type="button"
-        className="profileBtn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={email ? `Account: ${email}` : "Sign in to sync"}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="avatar" aria-hidden="true">
-          {initial}
-        </span>
+      <button type="button" className="profileBtn" ref={triggerRef} aria-controls="account-panel" aria-haspopup="dialog"
+        aria-expanded={open} aria-label={email ? `Account: ${email}` : "Sign in to sync"} onClick={() => setOpen((value) => !value)}>
+        <span className="avatar" aria-hidden="true">{email ? email.charAt(0).toUpperCase() : "?"}</span>
         <span className="profileName">{email ?? "Sign in"}</span>
       </button>
-
       {open ? (
-        <div className="profileMenu" role="menu">
+        <div id="account-panel" className="profileMenu authPanel" role="dialog" aria-label="Neon account">
+          <p className="profileMenuHead">{email ?? (sent ? "Check your email" : "Sign in to sync")}</p>
           {email ? (
             <>
-              <p className="profileMenuHead">{email}</p>
-              <p className="menuItem menuItem--muted">
-                <AppIcons.user size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
-                Tasks sync to your account
-              </p>
-              <button type="button" role="menuitem" className="menuItem" onClick={() => void signOut()}>
-                <AppIcons.out size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
-                Sign out
+              <p className="menuItem menuItem--muted"><AppIcons.user size={ICON_SIZE.inline} aria-hidden="true" />Saved to your Neon account</p>
+              <button type="button" disabled={busy} className="menuItem" onClick={() => void signOut()}>
+                <AppIcons.out size={ICON_SIZE.inline} aria-hidden="true" />{busy ? "Signing out…" : "Sign out"}
               </button>
             </>
-          ) : sent ? (
-            <>
-              <p className="profileMenuHead">{AppHeaderStrings.checkInbox}</p>
-              <p className="menuItem menuItem--muted">{AppHeaderStrings.magicLinkSent(address.trim())}</p>
-            </>
           ) : (
-            <>
-              <p className="profileMenuHead">{AppHeaderStrings.signInHeading}</p>
-              <form
-                className="authForm"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void sendLink();
-                }}
-              >
-                <label className="field">
-                  <span>{AppHeaderStrings.emailLabel}</span>
-                  <input
-                    type="email"
-                    required
-                    value={address}
-                    placeholder="you@example.com"
-                    onChange={(event) => setAddress(event.target.value)}
-                  />
+            <form className="authForm" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+              {sent ? (
+                <>
+                  <p className="hint" role="status">Enter the code sent to {address.trim()}.</p>
+                  <label className="field"><span>Sign-in code</span>
+                    <input ref={inputRef} autoComplete="one-time-code" inputMode="numeric" type="text" pattern="[0-9]{6}" maxLength={6}
+                      required value={code} disabled={busy} aria-describedby={error ? "auth-error" : undefined} onChange={(event) => setCode(event.target.value)} />
+                  </label>
+                </>
+              ) : (
+                <label className="field"><span>Email address</span>
+                  <input ref={inputRef} type="email" autoComplete="email" required value={address} placeholder="you@example.com" disabled={busy}
+                    aria-describedby={error ? "auth-error" : "auth-note"} onChange={(event) => setAddress(event.target.value)} />
                 </label>
-                <button type="submit" className="btn btn--primary" disabled={busy || address.trim().length === 0}>
-                  {busy ? AppHeaderStrings.sending : AppHeaderStrings.sendLink}
-                </button>
-                {error ? <p className="hint">{error}</p> : null}
-                <p className="hint">{AppHeaderStrings.signInNote}</p>
-              </form>
-            </>
+              )}
+              <button type="submit" className="btn btn--primary" disabled={busy || (sent ? code.trim().length !== 6 : !address.trim())}>
+                {busy ? (sent ? "Signing in…" : "Sending…") : sent ? "Sign in" : "Email me a code"}
+              </button>
+              {sent ? <button type="button" className="btn btn--quiet" disabled={busy} onClick={() => { setSent(false); setCode(""); setError(null); }}>Use another email or resend</button> : null}
+              <p id="auth-note" className="hint">No password needed. Your existing tasks stay safe on this device.</p>
+            </form>
           )}
+          {error ? <p id="auth-error" className="authError" role="alert">{error}</p> : null}
         </div>
       ) : null}
     </div>

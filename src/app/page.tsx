@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { AppIcons, ICON_SIZE } from "@/components/icons";
 import { CaptureBar } from "@/components/CaptureBar";
@@ -42,10 +42,20 @@ const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
  * Nothing here decides what a task means — every panel reads the same store.
  */
 export default function Home() {
-  const { state, storageError } = useAppStore();
+  const { state, storageError, syncError, syncing, retrySync } = useAppStore();
   const [tab, setTab] = useState<Tab>("now");
   const [sheetOpen, setSheetOpen] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const followHash = () => {
+      const key = window.location.hash.slice(1);
+      if (TABS.some((entry) => entry.key === key)) setTab(key as Tab);
+    };
+    followHash();
+    window.addEventListener("hashchange", followHash);
+    return () => window.removeEventListener("hashchange", followHash);
+  }, []);
 
   if (!state.hydrated) {
     return (
@@ -69,6 +79,7 @@ export default function Home() {
 
   return (
     <div className="shell">
+      <a className="skipLink" href="#main-content">Skip to tasks</a>
       <ServiceWorkerRegistrar />
       <AppHeader onJumpToCapture={jumpToCapture} />
       <Onboarding />
@@ -103,6 +114,7 @@ export default function Home() {
               aria-current={tab === entry.key ? "page" : undefined}
               onClick={() => {
                 setTab(entry.key);
+                window.location.hash = entry.key;
                 setSheetOpen(false);
               }}
             >
@@ -124,7 +136,14 @@ export default function Home() {
         </p>
       ) : null}
 
-      <main className="content">
+      {syncError ? (
+        <div className="storageWarning syncWarning" role="alert">
+          <div><strong>Cloud sync needs attention</strong><p>{syncError}</p><p className="hint">Your work is still saved on this device.</p></div>
+          <button className="btn" disabled={syncing} onClick={retrySync}>{syncing ? "Retrying…" : "Retry sync"}</button>
+        </div>
+      ) : null}
+
+      <main className="content" id="main-content">
         {tab === "now" ? <NowView /> : null}
         {tab === "today" ? <TodayBoard /> : null}
         {tab === "triage" ? <TriageStack /> : null}
@@ -133,6 +152,7 @@ export default function Home() {
         {tab === "log" ? <LogTimeline /> : null}
         {tab === "settings" ? <SettingsPanel /> : null}
       </main>
+      <UndoToast />
     </div>
   );
 }

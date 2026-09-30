@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={lexend.variable}
     >
       <body>
-        <AppStoreProvider>{children}</AppStoreProvider>
+        <AppStoreProvider authEnabled={!!(process.env.NEON_AUTH_BASE_URL && process.env.NEON_AUTH_COOKIE_SECRET)}>{children}</AppStoreProvider>
       </body>
     </html>
   );

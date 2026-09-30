@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { AppIcons, AREA_ICON_COMPONENTS, ICON_SIZE } from "./icons";
 import { ACTIONS, TRIAGE, UI } from "@/lib/copy";
 import { triageQueue } from "@/lib/selectors";
@@ -34,45 +34,43 @@ export function TriageStack() {
 
   const current = cards[0] ?? null;
 
+  const currentId = current?.id;
+
   /** Move the visual card out, then commit the decision once it is gone. */
-  const decide = useCallback(
-    (direction: "right" | "left" | "up", dueAt?: string) => {
-      if (!current) return;
+  const decide = (direction: "right" | "left" | "up", dueAt?: string) => {
+      if (!currentId || exiting) return;
       setExiting(direction);
       window.setTimeout(() => {
         setExiting(null);
         setDrag(null);
         setLaterOpen(false);
         if (direction === "right") {
-          dispatch({ type: "triage", id: current.id, status: "today" });
+          dispatch({ type: "triage", id: currentId, status: "today" });
         } else if (direction === "left") {
           if (dueAt !== undefined) {
-            dispatch({ type: "triage", id: current.id, status: "scheduled", dueAt });
+            dispatch({ type: "triage", id: currentId, status: "scheduled", dueAt });
           } else {
-            dispatch({ type: "triage", id: current.id, status: "today" });
+            dispatch({ type: "triage", id: currentId, status: "today" });
           }
         } else {
-          dispatch({ type: "drop", id: current.id });
+          dispatch({ type: "drop", id: currentId });
         }
       }, 160);
-    },
-    [current, dispatch],
-  );
+  };
 
-  // Keyboard shortcuts: every gesture has a key twin.
+  // The listener reads the latest card without reattaching on every render.
+  const onTriageKey = useEffectEvent((event: KeyboardEvent) => {
+    if (event.target instanceof HTMLElement &&
+        (event.target.matches("input, textarea, select, button, a") || event.target.isContentEditable)) return;
+    if (!currentId || exiting) return;
+    if (event.key === "ArrowRight") { event.preventDefault(); decide("right"); }
+    if (event.key === "ArrowUp") { event.preventDefault(); decide("up"); }
+  });
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (!current) return;
-      if (event.key === "ArrowRight") decide("right");
-      if (event.key === "ArrowUp") decide("up");
-      if (event.key === "ArrowLeft" && laterOpen) {
-        // Left arrow inside the later menu is not bound; the menu owns the keys.
-      }
-    };
+    const onKey = (event: KeyboardEvent) => onTriageKey(event);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, decide, laterOpen]);
+  }, []);
 
   function onPointerDown(event: React.PointerEvent) {
     if (laterOpen) return;

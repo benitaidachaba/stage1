@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { ACTIONS, UI } from "@/lib/copy";
 import { NOW_WINDOW_MINUTES } from "@/lib/defaults";
@@ -58,7 +58,7 @@ export function NowView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, state.settings.display.readAloud]);
 
-  const askAssistant = useCallback(async () => {
+  const askAssistant = async () => {
     if (!task) return;
     const seq = ++proposalSeq.current;
     setProposalError(null);
@@ -84,7 +84,7 @@ export function NowView() {
       setProposalError("The assistant could not be reached.");
       setProposal({ text: `Set a two-minute timer and do the tiniest piece of “${task.title}”`, fallback: true });
     }
-  }, [task, dispatch]);
+  };
 
   if (!task) {
     return (

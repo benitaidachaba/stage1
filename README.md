@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pocket
 
-## Getting Started
+A mobile-first todo app with quick capture, inbox triage, focus timers,
+planning, notes, and accessible display settings. Neon Auth and Postgres power
+account sign-in and cloud sync. Offline work stays in browser storage.
 
-First, run the development server:
+## Local setup
 
-```bash
+```sh
+npm install
+neon login
+neon link --project-id raspy-thunder-70940103 --branch production -y
+neon env pull
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The current directory is linked to the `Pocket todo` project. `.neon` and
+`.env.local` are gitignored. Env pull supplies `DATABASE_URL`,
+`DATABASE_URL_UNPOOLED`, and `NEON_AUTH_BASE_URL`. Add a separate
+`NEON_AUTH_COOKIE_SECRET` to `.env.local` using `openssl rand -base64 32`.
+An example is provided in `.env.example`; never put these credentials in
+`NEXT_PUBLIC_` variables. The cookie secret has already been generated locally.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open http://localhost:3000 and choose **Sign in**. Request an email code and
+enter the six digits to sign in or create your Neon account. The same-origin
+`/api/auth/*` routes use Neon's Next.js SDK and HTTP-only session cookies.
+Localhost sign-in is enabled on this branch. Register your deployed origin with
+`neon neon-auth domain add https://your-app.example` before production use.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database and sync
 
-## Learn More
+`neon/schema.sql` defines the private `pocket.records` table. Apply it with
+`npm run db:migrate`; migrations use the direct database connection. Test it
+on an isolated branch with:
 
-To learn more about Next.js, take a look at the following resources:
+```sh
+neon branches create --name pocket-migration-check --parent production
+npm run db:migrate -- --branch pocket-migration-check --verify
+neon branches delete pocket-migration-check
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The authenticated `/api/sync` handler gets the owner from Neon Auth, validates
+requests, and queries only that owner's composite keys. Database credentials
+stay on the server. Tasks, checklists, notes, areas, activity history, and
+settings sync atomically. Task and note timestamps resolve concurrent edits;
+other records use version checks. Deletions retain tombstones so stale devices
+cannot restore erased records. A deliberate undo based on the current version
+can restore an item. Edits made while syncing stay in the local working set
+and sync on the next round. Unchanged records are not rewritten.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Each account has a separate offline cache. The first Neon account on this
+browser adopts the previous local working set, preserving an untouched backup
+under `smallsteps.tasks.v2:pre-neon-backup` (the exact prefix is `STORAGE_KEY` in
+`src/lib/defaults.ts`). Other accounts do not inherit it. Signing out returns
+to the guest working set; account data remains available after signing back in.
+Existing old-provider sessions do not carry over: sign in again with Neon.
+If you have records saved only in an old cloud account, export and import them
+using Pocket's Settings before discarding that account.
 
-## Deploy on Vercel
+Reminder plans persist with tasks, but delivery, browser notification permission,
+and active countdown timers run on the device. Email/Telegram reminder delivery
+and support-person sharing are not implemented by this migration.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Neon configuration
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`neon.ts` declares Auth, the private `pocket` bucket, and the sample `api`
+function (`hello.ts`). AI Gateway is disabled. `neon config plan` previews
+infrastructure changes; `neon deploy` applies them. The sample Function returns
+`Hello from Neon Functions`; todo sync runs in the Next.js app's protected
+route handlers. The bucket is provisioned for future attachments.
+
+Deploy the Next.js app to your app host with `DATABASE_URL`,
+`NEON_AUTH_BASE_URL`, and `NEON_AUTH_COOKIE_SECRET` set on the server, and
+register that app's origin with Neon Auth. Neon Functions do not deploy this UI.
+Set `GOOGLE_API_KEY` only if enabling the optional assistant/transcription API.
+
+## Verification and troubleshooting
+
+```sh
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+- Missing sign-in button: check `NEON_AUTH_BASE_URL` and the cookie secret,
+  then restart the server/rebuild after changing configuration.
+- Email code failure: use a fresh code, check Neon Auth email settings, and
+  confirm the app origin is allowed. Configure custom SMTP for production.
+- Sync paused: use Retry sync. Your offline cache keeps edits while disconnected;
+  sync retries on reconnect and when returning to the tab.
+- Missing table: run `npm run db:migrate` against the matching database.
+- Full browser storage: export a backup in Settings before clearing anything.
+
+References: [Neon Auth for Next.js](https://neon.com/docs/auth/quick-start/nextjs-api-only),
+[Neon Postgres driver](https://neon.com/docs/serverless/serverless-driver).

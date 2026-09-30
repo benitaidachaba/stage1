@@ -440,6 +440,7 @@ export type Action =
   | { type: "note.update"; id: string; title?: string; body?: string }
   | { type: "note.delete"; id: string }
   | { type: "sync.merged"; tasks: Task[]; notes: Note[]; areas: Area[] }
+  | { type: "sync.received"; state: PersistedState }
   | { type: "data.imported"; state: PersistedState }
   | { type: "data.exported" }
   | { type: "data.cleared" }

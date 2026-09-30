@@ -4,7 +4,6 @@ import { parseCapture, looksScheduled } from "./parse";
 import {
   LADDER,
   LADDER_MAX_STEP,
-  allowedMaxStep,
   clockToMinutes,
   describePlan,
   evaluateReminder,
@@ -14,7 +13,6 @@ import {
   recordInteraction,
   resolveChannel,
   snoozeReminder,
-  stepOrDefault,
   stopReminder,
 } from "./escalation";
 import {

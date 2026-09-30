@@ -78,10 +78,11 @@ export function useVoiceInput(onText: (text: string) => void): VoiceInput {
   }, [onText]);
 
   useEffect(() => {
-    setCanRecognise(getRecognitionConstructor() !== null);
-    if (typeof window !== "undefined" && typeof window.MediaRecorder !== "undefined") {
-      setCanRecord(true);
-    }
+    const timer = window.setTimeout(() => {
+      setCanRecognise(getRecognitionConstructor() !== null);
+      setCanRecord(typeof window.MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const finaliseRecording = useCallback(async () => {

@@ -328,13 +328,13 @@ export function coerceState(raw: unknown, now: Date = new Date()): PersistedStat
 }
 
 /** Reads stored state. A missing or broken store returns null so callers can decide. */
-export function loadState(): { state: PersistedState | null; error: string | null } {
+export function loadState(accountId: string | null = null): { state: PersistedState | null; error: string | null } {
   if (!isBrowser()) return { state: null, error: null };
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(accountId ? `${STORAGE_KEY}:account:${accountId}` : STORAGE_KEY);
     if (!raw) {
       // One-time move from the v1 store, so nobody starts from zero.
-      const legacy = window.localStorage.getItem("brainfriendly.tasks.v1");
+      const legacy = accountId ? null : window.localStorage.getItem("brainfriendly.tasks.v1");
       if (legacy) {
         const migrated = coerceState(JSON.parse(legacy));
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
@@ -357,7 +357,7 @@ export function loadState(): { state: PersistedState | null; error: string | nul
 }
 
 /** Writes state. Returns a message when the write did not happen. */
-export function saveState(state: PersistedState): string | null {
+export function saveState(state: PersistedState, accountId: string | null = null): string | null {
   if (!isBrowser()) return null;
   try {
     const payload: PersistedState = {
@@ -368,7 +368,7 @@ export function saveState(state: PersistedState): string | null {
       events: state.events,
       settings: state.settings,
     };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(accountId ? `${STORAGE_KEY}:account:${accountId}` : STORAGE_KEY, JSON.stringify(payload));
     return null;
   } catch (error) {
     if (error instanceof Error && error.name === "QuotaExceededError") {

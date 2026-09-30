@@ -13,19 +13,6 @@ export function plural(count: number, one: string, many = `${one}s`): string {
   return count === 1 ? one : many;
 }
 
-/** Header account strings, kept beside the other user-facing copy. */
-export const AppHeaderStrings = {
-  signInHeading: "Sign in to sync",
-  emailLabel: "Email",
-  sendLink: "Email me a sign-in link",
-  sending: "Sending…",
-  checkInbox: "Check your email",
-  magicLinkSent: (address: string) =>
-    `A sign-in link is on its way to ${address}. It works once, then you are in.`,
-  signInNote: "No password. The link signs you in on this device.",
-  signedIn: "Tasks sync to your account",
-} as const;
-
 // ----------------------------------------------------------------- status --
 
 /** Short text for every state. Always paired with an icon and a colour dot. */
