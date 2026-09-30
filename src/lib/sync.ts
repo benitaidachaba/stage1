@@ -25,7 +25,7 @@ export interface SyncReport {
 
 // --------------------------------------------------------------- mappers --
 
-type TaskRow = {
+export type TaskRow = {
   id: string;
   title: string;
   note: string;
@@ -124,7 +124,7 @@ export function rowToTask(row: TaskRow): Task {
   };
 }
 
-type NoteRow = {
+export type NoteRow = {
   id: string;
   title: string;
   body: string;
@@ -155,7 +155,7 @@ export function rowToNote(row: NoteRow): Note {
   };
 }
 
-type AreaRow = {
+export type AreaRow = {
   id: string;
   name: string;
   colour: string;
