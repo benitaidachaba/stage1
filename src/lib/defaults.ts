@@ -21,6 +21,7 @@ export const AREA_COLOURS = ["#2f6d5a", "#8a5a83", "#4a6d8c", "#a2703a", "#6d6a8
 export function emptyReminder(): Reminder {
   return {
     enabled: false,
+    leadMinutes: null,
     status: "scheduled",
     stepIndex: 0,
     nextFireAt: null,

@@ -287,6 +287,8 @@ function TaskRow({ task }: { task: Task }) {
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editNote, setEditNote] = useState(task.note);
+  const [editDue, setEditDue] = useState(task.dueAt ? toDateTimeLocalValue(new Date(task.dueAt)) : "");
+  const [editLead, setEditLead] = useState(task.reminder.leadMinutes ?? state.settings.reminders.leadMinutes);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reason, setReason] = useState("");
   const area = task.areaId ? (state.areas.find((entry) => entry.id === task.areaId) ?? null) : null;
@@ -342,6 +344,7 @@ function TaskRow({ task }: { task: Task }) {
           </button>
         )}
         {task.estimateMinutes !== null ? <span>{describeMinutes(task.estimateMinutes)}</span> : null}
+        {task.dueAt && task.reminder.enabled ? <span>Remind {task.reminder.leadMinutes ?? state.settings.reminders.leadMinutes} min before</span> : null}
         {task.energy ? <span>{task.energy} energy</span> : null}
         {area ? (
           <span className="chip">
@@ -370,12 +373,19 @@ function TaskRow({ task }: { task: Task }) {
 
       {editOpen ? (
         <form
-          className="row row--wrap inline-form"
+          className="taskEditForm inline-form"
           onSubmit={(event) => {
             event.preventDefault();
             const title = editTitle.trim();
             if (title.length === 0) return;
-            dispatch({ type: "update", id: task.id, patch: { title, note: editNote.trim() } });
+            const due = editDue ? new Date(editDue) : null;
+            if (due && Number.isNaN(due.getTime())) return;
+            dispatch({ type: "update", id: task.id, patch: {
+              title,
+              note: editNote.trim(),
+              dueAt: due?.toISOString() ?? null,
+              reminder: { ...task.reminder, leadMinutes: editLead },
+            } });
             setEditOpen(false);
           }}
         >
@@ -389,18 +399,36 @@ function TaskRow({ task }: { task: Task }) {
           </label>
           <label className="field field--grow">
             <span>{ACTIONS.editNote}</span>
-            <input
-              type="text"
+            <textarea
+              rows={3}
               value={editNote}
               onChange={(event) => setEditNote(event.target.value)}
             />
           </label>
+          <label className="field">
+            <span>Due date and time</span>
+            <input type="datetime-local" value={editDue} onChange={(event) => setEditDue(event.target.value)} />
+          </label>
+          <label className="field">
+            <span>Remind me</span>
+            <select value={editLead} disabled={!editDue} onChange={(event) => setEditLead(Number(event.target.value))}>
+              <option value={0}>At due time</option>
+              <option value={5}>5 minutes before</option>
+              <option value={10}>10 minutes before</option>
+              <option value={15}>15 minutes before</option>
+              <option value={30}>30 minutes before</option>
+              <option value={60}>1 hour before</option>
+            </select>
+          </label>
+          <p className="hint">Created {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(task.createdAt))}</p>
           <button type="submit" className="btn btn--primary" disabled={editTitle.trim().length === 0}>
             {ACTIONS.saveChanges}
           </button>
           <button type="button" className="btn btn--quiet" onClick={() => {
             setEditTitle(task.title);
             setEditNote(task.note);
+            setEditDue(task.dueAt ? toDateTimeLocalValue(new Date(task.dueAt)) : "");
+            setEditLead(task.reminder.leadMinutes ?? state.settings.reminders.leadMinutes);
             setEditOpen(false);
           }}>
             {ACTIONS.dismiss}
@@ -417,7 +445,13 @@ function TaskRow({ task }: { task: Task }) {
           type="button"
           className="btn btn--quiet"
           aria-expanded={editOpen}
-          onClick={() => setEditOpen((open) => !open)}
+          onClick={() => {
+            setEditTitle(task.title);
+            setEditNote(task.note);
+            setEditDue(task.dueAt ? toDateTimeLocalValue(new Date(task.dueAt)) : "");
+            setEditLead(task.reminder.leadMinutes ?? state.settings.reminders.leadMinutes);
+            setEditOpen((open) => !open);
+          }}
         >
           {ACTIONS.edit}
         </button>
@@ -495,6 +529,25 @@ function TaskRow({ task }: { task: Task }) {
                 });
               }}
             />
+          </label>
+          <label className="field">
+            <span>Remind me</span>
+            <select
+              value={task.reminder.leadMinutes ?? state.settings.reminders.leadMinutes}
+              disabled={!task.dueAt}
+              onChange={(event) => dispatch({
+                type: "update",
+                id: task.id,
+                patch: { reminder: { ...task.reminder, leadMinutes: Number(event.target.value) } },
+              })}
+            >
+              <option value={0}>At due time</option>
+              <option value={5}>5 minutes before</option>
+              <option value={10}>10 minutes before</option>
+              <option value={15}>15 minutes before</option>
+              <option value={30}>30 minutes before</option>
+              <option value={60}>1 hour before</option>
+            </select>
           </label>
           <button
             type="button"

@@ -111,7 +111,7 @@ export function quietHoursEnd(at: Date, quiet: ReminderSettings["quietHours"]): 
 export function firstFireAt(task: Task, now: Date, settings: ReminderSettings): string | null {
   const due = toDate(task.dueAt);
   if (!due) return null;
-  const lead = Math.max(settings.leadMinutes, 0);
+  const lead = Math.max(task.reminder.leadMinutes ?? settings.leadMinutes, 0);
   const planned = addMinutes(due, -lead);
   // A task already past due still deserves one gentle nudge, starting now.
   return (planned.getTime() < now.getTime() ? now : planned).toISOString();
@@ -191,7 +191,7 @@ export function recordInteraction(
   const due = toDate(task.dueAt);
   const restFromNow = addMinutes(now, LADDER[1]?.afterMinutes ?? 15);
   const replanned = due && due.getTime() > now.getTime() ? due : restFromNow;
-  const lead = Math.max(settings.leadMinutes, 0);
+  const lead = Math.max(task.reminder.leadMinutes ?? settings.leadMinutes, 0);
   const nextFireAt = addMinutes(replanned, -lead);
   return {
     ...task.reminder,

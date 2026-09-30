@@ -46,7 +46,7 @@ export function NotesView() {
       </div>
 
       {composing ? (
-        <div className="panel noteComposer">
+        <form className="panel noteComposer" onSubmit={(event) => { event.preventDefault(); saveDraft(); }}>
           <label className="field">
             <span>{UI.notesTitlePlaceholder}</span>
             <input
@@ -64,7 +64,7 @@ export function NotesView() {
             />
           </label>
           <div className="row row--wrap">
-            <button type="button" className="btn btn--primary" onClick={saveDraft}>
+            <button type="submit" className="btn btn--primary" disabled={!draftBody.trim() && !draftTitle.trim()}>
               {ACTIONS.save}
             </button>
             <button
@@ -79,7 +79,7 @@ export function NotesView() {
               {ACTIONS.dismiss}
             </button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       {notes.length === 0 && !composing ? <p className="hint">{UI.notesEmpty}</p> : null}

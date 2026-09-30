@@ -25,8 +25,8 @@ type Tab = "now" | "today" | "triage" | "planner" | "notes" | "log" | "settings"
  * Notes. On phones the bar scrolls sideways rather than shrinking the words.
  */
 const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
-  { key: "now", label: UI.nav.now, icon: "now" },
   { key: "today", label: UI.nav.today, icon: "today" },
+  { key: "now", label: UI.nav.now, icon: "now" },
   { key: "triage", label: UI.nav.triage, icon: "triage" },
   { key: "planner", label: UI.plannerHeading, icon: "today" },
   { key: "notes", label: UI.notesNav, icon: "log" },
@@ -43,7 +43,7 @@ const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
  */
 export default function Home() {
   const { state, storageError, syncError, syncing, retrySync } = useAppStore();
-  const [tab, setTab] = useState<Tab>("now");
+  const [tab, setTab] = useState<Tab>("today");
   const [sheetOpen, setSheetOpen] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -84,10 +84,8 @@ export default function Home() {
       <AppHeader onJumpToCapture={jumpToCapture} />
       <Onboarding />
 
+      <div className="workspace">
       {/* Capture. Inline on desktop; on phones the FAB expands the sheet. */}
-      <div ref={captureRef} className="captureInline">
-        <CaptureBar />
-      </div>
       <button
         type="button"
         className="fab"
@@ -99,7 +97,7 @@ export default function Home() {
       </button>
       {sheetOpen ? (
         <div className="captureSheet">
-          <CaptureBar />
+          <CaptureBar sheet />
         </div>
       ) : null}
 
@@ -110,7 +108,7 @@ export default function Home() {
             <button
               key={entry.key}
               type="button"
-              className={`tab${tab === entry.key ? " tab--on" : ""}`}
+              className={`tab${tab === entry.key ? " tab--on" : ""}${entry.key === "planner" || entry.key === "notes" ? " tab--extra" : ""}`}
               aria-current={tab === entry.key ? "page" : undefined}
               onClick={() => {
                 setTab(entry.key);
@@ -129,6 +127,9 @@ export default function Home() {
           );
         })}
       </nav>
+
+      <div className="workspaceMain">
+      <div ref={captureRef} className="captureInline"><CaptureBar /></div>
 
       {storageError ? (
         <p className="storageWarning" role="status">
@@ -152,6 +153,8 @@ export default function Home() {
         {tab === "log" ? <LogTimeline /> : null}
         {tab === "settings" ? <SettingsPanel /> : null}
       </main>
+      </div>
+      </div>
       <UndoToast />
     </div>
   );

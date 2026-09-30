@@ -11,17 +11,15 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
 /**
  * The capture box.
  *
- * One text field, nothing required. Date parsing from typed words still works,
- * and an explicitly picked due date always wins over the words — the device
- * clock is the only clock. The optional details field carries anything that
- * does not belong in the title.
+ * A clear task form with the optional note, due time and reminder visible.
+ * The recorded start time is the moment Save is pressed.
  */
 export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
   const { dispatch, now } = useAppStore();
   const [text, setText] = useState("");
   const [noteText, setNoteText] = useState("");
   const [dueValue, setDueValue] = useState("");
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [leadMinutes, setLeadMinutes] = useState(10);
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceRef = useRef<"typed" | "voice">("typed");
@@ -62,10 +60,12 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
 
   const trimmed = text.trim();
   const preview = trimmed.length > 0 ? parseCapture(trimmed, now) : null;
-  const dueAt = dueValue.length > 0 ? new Date(dueValue).toISOString() : null;
+  const pickedDue = dueValue ? new Date(dueValue) : null;
+  const dueAt = pickedDue && !Number.isNaN(pickedDue.getTime()) ? pickedDue.toISOString() : null;
+  const effectiveDueAt = dueValue ? dueAt : preview?.dueAt ?? null;
 
   function save() {
-    if (trimmed.length === 0) return;
+    if (trimmed.length === 0 || (dueValue && !dueAt)) return;
     dispatch({
       type: "capture",
       input: {
@@ -73,14 +73,15 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
         // Measured against the store's clock, which reads the device time.
         durationMs: focusedAt === null ? undefined : Math.max(Math.round(now.getTime() - focusedAt), 0),
         source: sourceRef.current,
-        dueAt,
+        dueAt: dueValue ? dueAt : undefined,
         note: noteText.trim().length > 0 ? noteText.trim() : undefined,
+        reminderLeadMinutes: effectiveDueAt ? leadMinutes : null,
       },
     });
     setText("");
     setNoteText("");
     setDueValue("");
-    setMoreOpen(false);
+    setLeadMinutes(10);
     setFocusedAt(null);
     sourceRef.current = "typed";
     // Ready for the next thought without another click.
@@ -97,7 +98,8 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
         save();
       }}
     >
-      <label className="field field--grow">
+      <div className="captureHeading"><strong>New task</strong><span>Created when saved · {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(now)}</span></div>
+      <label className="field field--grow captureTitleField">
         <span>{UI.captureLabel}</span>
         <input
           ref={inputRef}
@@ -114,7 +116,37 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
         />
       </label>
 
-      <button
+      <div className="captureFields">
+        <label className="field">
+          <span>Notes <small>(optional)</small></span>
+          <textarea
+            rows={2}
+            value={noteText}
+            placeholder={UI.captureNotePlaceholder}
+            onChange={(event) => setNoteText(event.target.value)}
+          />
+        </label>
+        <div className="captureDateRow">
+          <label className="field">
+            <span>Due date and time <small>(optional)</small></span>
+            <input type="datetime-local" value={dueValue} onChange={(event) => setDueValue(event.target.value)} />
+          </label>
+          <label className="field">
+            <span>Remind me</span>
+            <select value={leadMinutes} disabled={!effectiveDueAt} onChange={(event) => setLeadMinutes(Number(event.target.value))}>
+              <option value={0}>At due time</option>
+              <option value={5}>5 minutes before</option>
+              <option value={10}>10 minutes before</option>
+              <option value={15}>15 minutes before</option>
+              <option value={30}>30 minutes before</option>
+              <option value={60}>1 hour before</option>
+            </select>
+          </label>
+        </div>
+        <p className="hint">Reminders appear while Pocket is open. Enable browser alerts in Settings to see notifications.</p>
+      </div>
+
+      <div className="captureActions"><button
         type="button"
         className={`btn btn--mic${listening ? " btn--mic-on" : ""}`}
         aria-pressed={listening}
@@ -139,43 +171,12 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
         )}
       </button>
 
-      <button type="submit" className="btn btn--primary" disabled={trimmed.length === 0}>
+      <button type="submit" className="btn btn--primary" disabled={trimmed.length === 0 || Boolean(dueValue && !dueAt)}>
         <AppIcons.capture size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
         {ACTIONS.save}
       </button>
 
-      <button
-        type="button"
-        className="btn btn--quiet"
-        aria-expanded={moreOpen}
-        onClick={() => setMoreOpen((open) => !open)}
-      >
-        {dueValue.length > 0 || noteText.trim().length > 0
-          ? ACTIONS.captureDetailsSet
-          : ACTIONS.captureDetails}
-      </button>
-
-      {moreOpen ? (
-        <div className="row row--wrap captureMore">
-          <label className="field">
-            <span>{UI.captureDue}</span>
-            <input
-              type="datetime-local"
-              value={dueValue}
-              onChange={(event) => setDueValue(event.target.value)}
-            />
-          </label>
-          <label className="field field--grow">
-            <span>{UI.captureNote}</span>
-            <input
-              type="text"
-              value={noteText}
-              placeholder={UI.captureNotePlaceholder}
-              onChange={(event) => setNoteText(event.target.value)}
-            />
-          </label>
-        </div>
-      ) : null}
+      </div>
 
       {dueValue.length > 0 ? (
         <p className="hint">{UI.dueChosen(describeDue(dueAt, now))}</p>

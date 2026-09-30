@@ -8,6 +8,7 @@ import { describeDue, describeMinutes } from "@/lib/format";
 import { useAppStore } from "@/state/AppStore";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import type { Area, AreaIcon, Task } from "@/lib/types";
+import HoverStack from "@/components/ui/hover-stack";
 
 /**
  * The Triage stack.
@@ -125,6 +126,7 @@ export function TriageStack() {
       </div>
       <p className="hint">{TRIAGE.intro} {UI.triageAllHint}</p>
 
+      <HoverStack upcoming={cards.slice(1).map((task) => ({ id: task.id, title: task.title }))}>
       <div
         ref={cardRef}
         className={`triageCard${tiltRight ? " triageCard--today" : ""}${tiltLeft ? " triageCard--later" : ""}`}
@@ -147,7 +149,9 @@ export function TriageStack() {
           {current.source === "voice" ? <span>from a voice note</span> : null}
         </p>
         <AreaChips task={current} />
+        <div className="triageSwipeHints" aria-hidden="true"><span>← Later</span><span>Today →</span></div>
       </div>
+      </HoverStack>
 
       {laterOpen ? (
         <div className="row row--wrap laterMenu" role="group" aria-label={TRIAGE.laterHeading}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { AppIcons, ICON_SIZE } from "./icons";
 import { UI } from "@/lib/copy";
 import { AuthPanel } from "./AuthPanel";
@@ -46,9 +47,7 @@ export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) 
     <header className="appBar">
       <div className="appBarInner">
         <div className="appBarBrand">
-          <span className="brandMark" aria-hidden="true">
-            <AppIcons.now size={ICON_SIZE.header} weight="bold" />
-          </span>
+          <Image className="brandMark" src="/icon-192.png" alt="" width={44} height={44} />
           <div>
             <p className="wordmark">{UI.appName}</p>
             <p className="tagline">{UI.tagline}</p>
@@ -96,6 +95,24 @@ export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) 
                 <p className="profileMenuHead">
                   {name.length > 0 ? name : "You"} · this device
                 </p>
+                <a
+                  role="menuitem"
+                  className="menuItem"
+                  href="#planner"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <AppIcons.today size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
+                  Planner
+                </a>
+                <a
+                  role="menuitem"
+                  className="menuItem"
+                  href="#notes"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <AppIcons.log size={ICON_SIZE.inline} weight="regular" aria-hidden="true" />
+                  Notes
+                </a>
                 <a
                   role="menuitem"
                   className="menuItem"

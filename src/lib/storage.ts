@@ -74,6 +74,7 @@ function reminderFrom(raw: unknown): Reminder {
   const channel = raw.lastChannel;
   return {
     enabled: bool(raw.enabled, base.enabled),
+    leadMinutes: numOrNull(raw.leadMinutes) === null ? null : clampNumber(numOrNull(raw.leadMinutes), 0, 1440, 10),
     status,
     stepIndex: Math.max(0, Math.min(numOrNull(raw.stepIndex) ?? 0, 3)),
     nextFireAt: isoOrNull(raw.nextFireAt),

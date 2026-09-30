@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /*
  * One stylesheet, because the settings screen has to reach everything.
  *
@@ -1447,3 +1449,53 @@ textarea {
 .skipLink { position: fixed; top: -10rem; left: 1rem; z-index: 100; padding: 0.8rem 1rem; background: var(--surface); color: var(--ink); border: 2px solid var(--accent); border-radius: var(--radius); }
 .skipLink:focus { top: 1rem; }
 @media (max-width: 47.99rem) { .syncWarning { align-items: flex-start; flex-direction: column; } }
+
+/* Desktop uses a persistent side rail; phone navigation remains at the bottom. */
+.workspace { min-width: 0; }
+.workspaceMain { min-width: 0; display: flex; flex-direction: column; gap: calc(var(--space) * 1.25); }
+.tab--extra { display: none; }
+.brandMark { width: 2.4rem; height: 2.4rem; border-radius: 0.7rem; object-fit: cover; }
+input[type="datetime-local"] { font: inherit; color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 10px; padding: 0.55rem 0.7rem; min-height: 48px; width: 100%; color-scheme: light; }
+html[data-background="dark"] input[type="datetime-local"] { color-scheme: dark; }
+.capture { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 0.9rem; }
+.captureHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.captureHeading strong { font-size: 1.05rem; }
+.captureHeading span { color: var(--ink-soft); font-size: 0.78rem; }
+.captureFields { display: grid; gap: 0.8rem; }
+.captureDateRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.captureActions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.field small { font-weight: 400; }
+.taskEditForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.taskEditForm .field:first-child, .taskEditForm .field:nth-child(2), .taskEditForm .hint { grid-column: 1 / -1; }
+.taskEditForm .btn { justify-self: start; }
+.capture .hint { margin: 0; }
+.hoverStack { position: relative; width: min(100%, 26rem); min-height: 21rem; margin: 1.5rem auto 0; padding-top: 1.1rem; isolation: isolate; }
+.hoverStackBack { position: absolute; inset: 1.1rem 0 auto; height: 17rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface-raised); box-shadow: var(--shadow); overflow: hidden; padding: 1.6rem; color: var(--ink-soft); transition: transform 220ms ease, opacity 220ms ease; }
+.hoverStackBack--0 { transform: translateY(-1rem) scale(.91); opacity: .45; z-index: 0; }
+.hoverStackBack--1 { transform: translateY(-.45rem) scale(.96); opacity: .72; z-index: 1; }
+.hoverStack--active .hoverStackBack--0 { transform: translate(-1rem, -1.2rem) rotate(-4deg) scale(.91); }
+.hoverStack--active .hoverStackBack--1 { transform: translate(1rem, -.5rem) rotate(3deg) scale(.96); }
+.hoverStack .triageCard { z-index: 2; min-height: 18rem; justify-content: space-between; }
+.triageSwipeHints { display: flex; justify-content: space-between; gap: 1rem; margin-top: auto; font-size: .8rem; color: var(--ink-soft); }
+.triageSwipeHints span:last-child { color: var(--accent); font-weight: 700; }
+.toast { width: min(38rem, calc(100vw - 1.5rem)); bottom: calc(var(--nav-h) + .5rem + env(safe-area-inset-bottom)); }
+@media (prefers-reduced-motion: reduce) { .hoverStackBack { transition: none; } }
+
+@media (min-width: 48rem) {
+  .shell { max-width: 88rem; }
+  .workspace { display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); gap: clamp(1.5rem, 3vw, 3rem); align-items: start; }
+  .tabs { position: sticky; top: 5.5rem; display: flex; flex-direction: column; align-items: stretch; gap: .3rem; padding: .8rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+  .tab, .tab--extra { display: flex; width: 100%; border: 0; border-radius: .65rem; padding: .65rem .8rem; justify-content: flex-start; }
+  .tab--on { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); }
+  .capture { display: grid; }
+  .toast { bottom: 1.5rem; }
+  .appBarInner { max-width: 88rem; }
+}
+@media (max-width: 47.99rem) {
+  .captureDateRow { grid-template-columns: 1fr; }
+  .taskEditForm { grid-template-columns: 1fr; }
+  .captureSheet { max-height: min(75dvh, 43rem); overflow-y: auto; }
+  .tabs { overflow-x: hidden; }
+  .tab { min-width: 0; flex: 1 1 0; padding-inline: .1rem; }
+  .tab--extra { display: none; }
+}

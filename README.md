@@ -28,6 +28,16 @@ enter the six digits to sign in or create your Neon account. The same-origin
 Localhost sign-in is enabled on this branch. Register your deployed origin with
 `neon neon-auth domain add https://your-app.example` before production use.
 
+The app uses TypeScript, Tailwind CSS v4, and a shadcn-compatible
+`components.json`. UI components live in `src/components/ui` because the
+`@/*` alias points to `src/*`. Add more with `npx shadcn@latest add <component>`.
+The supplied hover-stack interaction is adapted for the task triage deck there.
+
+Task creation records its time automatically. Due date and time are optional;
+when supplied, each task can choose a reminder at the deadline or 5, 10, 15,
+30, or 60 minutes before. The current reminder loop runs while Pocket is open.
+Browser notifications additionally require permission in Settings.
+
 ## Database and sync
 
 `neon/schema.sql` defines the private `pocket.records` table. Apply it with

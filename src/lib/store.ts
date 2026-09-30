@@ -1,5 +1,5 @@
 import type { Action, AppState, Settings, Task, TaskEvent, UndoSnapshot } from "./types";
-import { UNDO_STACK_LIMIT, makeNote, makeStep, makeTask } from "./defaults";
+import { UNDO_STACK_LIMIT, emptyReminder, makeNote, makeStep, makeTask } from "./defaults";
 import { newId } from "./ids";
 import { parseCapture } from "./parse";
 import { firstFireAt, recordInteraction, snoozeReminder, stopReminder } from "./escalation";
@@ -184,6 +184,10 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           energy: parsed.energy,
           tags: parsed.tags,
           source: action.input.source ?? "typed",
+          reminder: {
+            ...emptyReminder(),
+            leadMinutes: action.input.reminderLeadMinutes ?? null,
+          },
         },
         at,
       );
@@ -227,12 +231,12 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         action.id,
         (task) => {
           let next: Task = { ...task, ...patch, updatedAt: at };
-          if (patch.dueAt !== undefined) {
+          if (patch.dueAt !== undefined || patch.reminder !== undefined) {
             next = { ...next, reminder: { ...next.reminder, enabled: false, nextFireAt: null } };
           }
           // Editing counts as paying attention, so the escalation backs off.
           next = { ...next, reminder: recordInteraction(next, now, state.settings.reminders) };
-          return patch.dueAt !== undefined ? armReminder(next, now, state.settings) : next;
+          return patch.dueAt !== undefined || patch.reminder !== undefined ? armReminder(next, now, state.settings) : next;
         },
         at,
       );

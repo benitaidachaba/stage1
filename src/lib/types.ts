@@ -71,6 +71,8 @@ export type Channel = "in-app" | "browser" | "email" | "telegram";
 /** A task's single reminder. One task can only ever own one live reminder. */
 export interface Reminder {
   enabled: boolean;
+  /** Minutes before this task is due; null follows the account default. */
+  leadMinutes: number | null;
   /** "scheduled" while waiting to fire, "stopped" when the person asked for quiet. */
   status: "scheduled" | "stopped";
   /** Index into the escalation ladder (see lib/escalation.ts). */
@@ -367,6 +369,8 @@ export interface CaptureInput {
   dueAt?: string | null;
   /** An optional description captured alongside the task. */
   note?: string;
+  /** Optional per-task reminder lead time, including zero for at the due time. */
+  reminderLeadMinutes?: number | null;
 }
 
 /** Result of parsing natural language out of a capture string. */

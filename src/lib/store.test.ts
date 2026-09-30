@@ -50,6 +50,18 @@ function fire(state: AppState, id: string, step: number, nextFireAt: string | nu
 }
 
 describe("capture", () => {
+  it("keeps a task's chosen reminder lead time and replans it when changed", () => {
+    const dueAt = at(90).toISOString();
+    const created = reduce(base(), { type: "capture", input: { text: "Call Alex", dueAt, reminderLeadMinutes: 15 } }, NOW);
+    const task = created.tasks[0];
+    expect(task.createdAt).toBe(NOW.toISOString());
+    expect(task.reminder.leadMinutes).toBe(15);
+    expect(task.reminder.nextFireAt).toBe(at(75).toISOString());
+
+    const changed = reduce(created, { type: "update", id: task.id, patch: { reminder: { ...task.reminder, leadMinutes: 5 } } }, NOW);
+    expect(changed.tasks[0].reminder.nextFireAt).toBe(at(85).toISOString());
+  });
+
   it("turns one messy sentence into an inbox card in a single action", () => {
     const state = capture(base(), "Send the report tomorrow at 4pm #work", 2400);
     const task = state.tasks[0];
