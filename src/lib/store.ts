@@ -1112,6 +1112,27 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       break;
     }
 
+    case "task.delete": {
+      // True deletion, distinct from dropping. The log line stays — that is
+      // what makes the record honest — but the task itself is gone for good.
+      const target = state.tasks.find((task) => task.id === action.id) ?? null;
+      if (!target) break;
+      snapshot(`deleting “${target.title}”`);
+      state = {
+        ...state,
+        tasks: state.tasks.filter((task) => task.id !== action.id),
+        // If the deleted task was open in the Now view, close the session.
+        focusSession: state.focusSession?.taskId === action.id ? null : state.focusSession,
+      };
+      log(
+        "task.deleted",
+        null,
+        `Deleted “${target.title}” for good. The record of it remains here.`,
+        { was: target.status },
+      );
+      break;
+    }
+
     case "assignArea": {
       const result = applyToTask(
         state,

@@ -99,6 +99,7 @@ export type EventType =
   | "task.snoozed"
   | "task.skipped"
   | "task.dropped"
+  | "task.deleted"
   | "task.archived"
   | "task.restored"
   | "task.moved-back"
@@ -389,6 +390,7 @@ export type Action =
   | { type: "triage"; id: string; status: "today" | "scheduled" | "dropped"; dueAt?: string | null }
   | { type: "complete"; id: string }
   | { type: "drop"; id: string; reason?: string }
+  | { type: "task.delete"; id: string }
   | { type: "reschedule"; id: string; dueAt: string | null }
   | { type: "snooze"; id: string; minutes: number }
   | { type: "skipToday"; id: string }

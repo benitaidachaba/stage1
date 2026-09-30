@@ -284,6 +284,10 @@ function TaskRow({ task }: { task: Task }) {
   const [dropOpen, setDropOpen] = useState(false);
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [dueOpen, setDueOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editNote, setEditNote] = useState(task.note);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [reason, setReason] = useState("");
   const area = task.areaId ? (state.areas.find((entry) => entry.id === task.areaId) ?? null) : null;
   const status = STATUS[task.status];
@@ -364,10 +368,58 @@ function TaskRow({ task }: { task: Task }) {
 
       {task.nextStep ? <p className="nextStep">First step: {task.nextStep}</p> : null}
 
+      {editOpen ? (
+        <form
+          className="row row--wrap inline-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const title = editTitle.trim();
+            if (title.length === 0) return;
+            dispatch({ type: "update", id: task.id, patch: { title, note: editNote.trim() } });
+            setEditOpen(false);
+          }}
+        >
+          <label className="field field--grow">
+            <span>{ACTIONS.editTitle}</span>
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.target.value)}
+            />
+          </label>
+          <label className="field field--grow">
+            <span>{ACTIONS.editNote}</span>
+            <input
+              type="text"
+              value={editNote}
+              onChange={(event) => setEditNote(event.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn btn--primary" disabled={editTitle.trim().length === 0}>
+            {ACTIONS.saveChanges}
+          </button>
+          <button type="button" className="btn btn--quiet" onClick={() => {
+            setEditTitle(task.title);
+            setEditNote(task.note);
+            setEditOpen(false);
+          }}>
+            {ACTIONS.dismiss}
+          </button>
+        </form>
+      ) : null}
+
       <div className="row row--wrap">
         <button type="button" className="btn btn--primary" onClick={() => dispatch({ type: "start", id: task.id })}>
           <AppIcons.start size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
           {ACTIONS.start}
+        </button>
+        <button
+          type="button"
+          className="btn btn--quiet"
+          aria-expanded={editOpen}
+          onClick={() => setEditOpen((open) => !open)}
+        >
+          {ACTIONS.edit}
         </button>
         {task.status !== "now" ? (
           <button type="button" className="btn" onClick={() => dispatch({ type: "complete", id: task.id })}>
@@ -394,6 +446,19 @@ function TaskRow({ task }: { task: Task }) {
             {ACTIONS.restore}
           </button>
         ) : null}
+        {confirmDelete ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={() => dispatch({ type: "task.delete", id: task.id })}
+          >
+            {ACTIONS.deleteTaskConfirm}
+          </button>
+        ) : (
+          <button type="button" className="btn btn--quiet" onClick={() => setConfirmDelete(true)}>
+            {ACTIONS.deleteTask}
+          </button>
+        )}
       </div>
 
       {snoozeOpen ? (

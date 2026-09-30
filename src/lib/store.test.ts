@@ -702,6 +702,53 @@ describe("free-form notes", () => {
   });
 });
 
+describe("editing and deleting tasks", () => {
+  it("updates title and details with one edit, and undo brings the old words back", () => {
+    const start = reduce(base(), {
+      type: "capture",
+      input: { text: "Reply to Dr. Leke", note: "waiting on his screenshot" },
+    }, NOW);
+    const id = start.tasks[0].id;
+
+    const edited = reduce(start, {
+      type: "update",
+      id,
+      patch: { title: "Reply to Dr. Leke re: dashboard access", note: "access granted, reply with the link" },
+    }, at(1));
+    expect(edited.tasks[0].title).toBe("Reply to Dr. Leke re: dashboard access");
+    expect(edited.tasks[0].note).toBe("access granted, reply with the link");
+
+    const undone = reduce(edited, { type: "undo" }, at(2));
+    expect(undone.tasks[0].title).toBe("Reply to Dr. Leke");
+    expect(undone.tasks[0].note).toBe("waiting on his screenshot");
+  });
+
+  it("deletes for good, keeps the log line, closes an open Now session, and undoes", () => {
+    const start = reduce(base(), { type: "capture", input: { text: "A mistake, typed twice" } }, NOW);
+    const id = start.tasks[0].id;
+    const started = reduce(start, { type: "start", id }, at(1));
+    expect(started.focusSession?.taskId).toBe(id);
+
+    const deleted = reduce(started, { type: "task.delete", id }, at(2));
+    expect(deleted.tasks).toHaveLength(0);
+    expect(deleted.focusSession).toBeNull();
+    expect(lastEvent(deleted).type).toBe("task.deleted");
+
+    const undone = reduce(deleted, { type: "undo" }, at(3));
+    expect(undone.tasks).toHaveLength(1);
+    expect(undone.tasks[0].title).toBe("A mistake, typed twice");
+  });
+
+  it("a deleted task cannot be found by any view", () => {
+    const start = reduce(base(), { type: "capture", input: { text: "Gone soon" } }, NOW);
+    const id = start.tasks[0].id;
+    const deleted = reduce(start, { type: "task.delete", id }, at(1));
+    expect(nowWindowTasks(deleted, at(2))).toHaveLength(0);
+    expect(triageQueue(deleted)).toHaveLength(0);
+    expect(inbox(deleted)).toHaveLength(0);
+  });
+});
+
 describe("the now window and the full triage queue", () => {
   it("offers only tasks due within ten minutes for the now view", () => {
     const start = reduce(base(), {
