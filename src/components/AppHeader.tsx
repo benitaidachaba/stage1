@@ -16,7 +16,7 @@ import { useAppStore } from "@/state/AppStore";
  * a visible label.
  */
 export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) {
-  const { state, undoOffer, undo } = useAppStore();
+  const { state, undoOffer, undo, userEmail, syncing } = useAppStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -112,7 +112,12 @@ export function AppHeader({ onJumpToCapture }: { onJumpToCapture: () => void }) 
               </div>
             ) : null}
           </div>
-          <AuthPanel email={null} />
+          {syncing ? (
+            <span className="hint" role="status">
+              Syncing…
+            </span>
+          ) : null}
+          <AuthPanel email={userEmail} />
         </div>
       </div>
     </header>

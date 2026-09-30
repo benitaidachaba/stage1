@@ -1148,6 +1148,30 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
       break;
     }
 
+    case "sync.merged": {
+      // The cloud's newest rows, folded in by id. Not undoable — undo returns
+      // local work, and a sync is not a local decision to take back.
+      const byId = new Map(state.tasks.map((task) => [task.id, task]));
+      for (const task of action.tasks) {
+        const existing = byId.get(task.id);
+        byId.set(task.id, existing ? (task.updatedAt > existing.updatedAt ? task : existing) : task);
+      }
+      const noteById = new Map(state.notes.map((note) => [note.id, note]));
+      for (const note of action.notes) {
+        const existing = noteById.get(note.id);
+        noteById.set(note.id, existing ? (note.updatedAt > existing.updatedAt ? note : existing) : note);
+      }
+      const areaById = new Map(state.areas.map((area) => [area.id, area]));
+      for (const area of action.areas) areaById.set(area.id, area);
+      state = {
+        ...state,
+        tasks: [...byId.values()],
+        notes: [...noteById.values()],
+        areas: [...areaById.values()],
+      };
+      break;
+    }
+
     case "data.imported": {
       const incoming = action.state;
       snapshot("importing a backup");

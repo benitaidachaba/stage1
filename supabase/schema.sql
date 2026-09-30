@@ -1,10 +1,12 @@
 -- Pocket schema (v1): users via Supabase auth, data scoped by user_id.
--- Every table enables Row Level Security so a session can only ever touch
--- its own rows. The log is append-only: inserts only, no updates or deletes.
+-- Primary keys are text so the app's local ids ("tsk_…", "not_…") sync 1:1
+-- without a mapping table. Every table enables Row Level Security so a
+-- session can only ever touch its own rows. The log is append-only: inserts
+-- only, no updates or deletes.
 
 -- ------------------------------------------------------------------- areas --
 create table if not exists public.areas (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null,
   colour text not null default '#6e1734',
@@ -15,7 +17,7 @@ create table if not exists public.areas (
 
 -- ------------------------------------------------------------------- tasks --
 create table if not exists public.tasks (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   title text not null,
   note text not null default '',
@@ -46,7 +48,7 @@ create table if not exists public.tasks (
 
 -- ------------------------------------------------------------------- notes --
 create table if not exists public.notes (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   title text not null default '',
   body text not null default '',
@@ -57,8 +59,8 @@ create table if not exists public.notes (
 
 -- ------------------------------------------------------------------- steps --
 create table if not exists public.steps (
-  id uuid primary key default gen_random_uuid(),
-  task_id uuid not null references public.tasks (id) on delete cascade,
+  id text primary key,
+  task_id text not null references public.tasks (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   text text not null,
   done boolean not null default false,
@@ -68,9 +70,9 @@ create table if not exists public.steps (
 
 -- ---------------------------------------------------- events (append-only) --
 create table if not exists public.events (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
-  task_id uuid references public.tasks (id) on delete set null,
+  task_id text references public.tasks (id) on delete set null,
   type text not null,
   summary text not null,
   at timestamptz not null default now(),
@@ -80,7 +82,7 @@ create table if not exists public.events (
 -- -------------------------------------------------------------- reminders --
 -- One live reminder per task; delivery state for the escalation ladder.
 create table if not exists public.reminders (
-  task_id uuid primary key references public.tasks (id) on delete cascade,
+  task_id text primary key references public.tasks (id) on delete cascade,
   user_id uuid not null references auth.users (id) on delete cascade,
   enabled boolean not null default false,
   status text not null default 'scheduled' check (status in ('scheduled','stopped')),
