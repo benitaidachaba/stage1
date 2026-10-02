@@ -76,8 +76,6 @@ export function AppStoreProvider({ children, authEnabled = false }: { children: 
   const [storageError, setStorageError] = useState<string | null>(null);
   /** The snapshot whose offer has already been taken or waved away. */
   const [spentOffer, setSpentOffer] = useState<string | null>(null);
-  /** The day the last reset was run, so it happens once per day, not once per render. */
-  const lastResetDay = useRef<string | null>(null);
 
   const { data: session, isPending: sessionPending } = authClient.useSession();
   const userId = authEnabled ? session?.user.id ?? null : null;
@@ -112,7 +110,6 @@ export function AppStoreProvider({ children, authEnabled = false }: { children: 
       setLoadedAccount(userId);
       setLastSyncedAt(null);
       setSyncError(null);
-      lastResetDay.current = null;
     }, 0);
     return () => window.clearTimeout(timer);
     // loadedAccount describes the outgoing working set; only identity changes reload it.
@@ -172,16 +169,6 @@ export function AppStoreProvider({ children, authEnabled = false }: { children: 
     const timer = window.setTimeout(() => void runSync(), SYNC_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [state, hydrated, userId, runSync]);
-
-  // The Daily Reset: on the first look at the app each day, tasks whose date
-  // went by come back for a new home. Never more than once per day.
-  useEffect(() => {
-    if (!hydrated) return;
-    const day = new Date(now).toDateString();
-    if (lastResetDay.current === day) return;
-    lastResetDay.current = day;
-    dispatch({ type: "reset.run", at: new Date(now).toISOString() });
-  }, [hydrated, now]);
 
   // Write it back, batched.
   useEffect(() => {

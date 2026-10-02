@@ -14,7 +14,7 @@ import { useVoiceInput } from "@/hooks/useVoiceInput";
  * A clear task form with the optional note, due time and reminder visible.
  * The recorded start time is the moment Save is pressed.
  */
-export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
+export function CaptureBar({ sheet = false, onSaved }: { sheet?: boolean; onSaved?: () => void }) {
   const { dispatch, now } = useAppStore();
   const [text, setText] = useState("");
   const [noteText, setNoteText] = useState("");
@@ -23,6 +23,8 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
   const [focusedAt, setFocusedAt] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sourceRef = useRef<"typed" | "voice">("typed");
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
 
   const voice = useVoiceInput((spoken) => {
     sourceRef.current = "voice";
@@ -84,8 +86,7 @@ export function CaptureBar({ sheet = false }: { sheet?: boolean }) {
     setLeadMinutes(10);
     setFocusedAt(null);
     sourceRef.current = "typed";
-    // Ready for the next thought without another click.
-    inputRef.current?.focus();
+    onSaved?.();
   }
 
   const listening = voice.state === "listening" || voice.state === "recording";

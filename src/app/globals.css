@@ -1499,3 +1499,126 @@ html[data-background="dark"] input[type="datetime-local"] { color-scheme: dark; 
   .tab { min-width: 0; flex: 1 1 0; padding-inline: .1rem; }
   .tab--extra { display: none; }
 }
+
+/* A focused, signed-in workspace. The task form lives in a modal at every size. */
+.loadingPage { min-height: 100dvh; display: grid; place-items: center; color: var(--ink-soft); }
+.appShell { max-width: none; padding: 0; gap: 0; }
+.appShell .appBar { margin: 0; padding: 0 var(--space); }
+.appShell .appBarInner { max-width: none; }
+.appBarBrand { text-decoration: none; }
+.appBarBrand .wordmark { font-size: 1.1rem; }
+.headerError { padding: .3rem 1rem; }
+.workspaceMain { padding: 1.5rem var(--space) calc(var(--nav-h) + 2.5rem); }
+.sidebarHelp { display: none; }
+.modalScrim { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 1rem; background: rgb(24 11 17 / 62%); }
+.captureDialog, .guideDialog { position: relative; width: min(100%, 37rem); max-height: min(90dvh, 58rem); overflow-y: auto; background: var(--surface); border-radius: 20px; box-shadow: 0 22px 70px rgb(0 0 0 / 25%); }
+.captureDialog .capture { border: 0; box-shadow: none; padding: 1.5rem; padding-top: 2.7rem; }
+.modalClose { position: absolute; right: .8rem; top: .55rem; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-size: 1.6rem; cursor: pointer; }
+.modalHead { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.guideDialog { padding: 1.5rem; }
+.guideSteps { display: grid; gap: .9rem; margin: 1.2rem 0; padding-left: 1.25rem; }
+.guideSteps li { padding-left: .25rem; }
+.guideSteps p { color: var(--ink-soft); font-size: .9rem; }
+.eyebrow { color: var(--accent); font-size: .7rem; font-weight: 750; letter-spacing: .16em; }
+.tasksView, .cardsView { display: flex; flex-direction: column; gap: 1.3rem; width: min(100%, 70rem); margin: 0 auto; }
+.tasksHeading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.tasksHeading h1, .cardsView h1 { font-size: clamp(1.75rem, 3vw, 2.5rem); margin: .2rem 0; }
+.searchField { max-width: 28rem; }
+.taskGroup { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 1rem 1.2rem; box-shadow: var(--shadow); }
+.taskGroupHead { display: flex; gap: .5rem; align-items: center; }
+.taskGroupHead h2 { font-size: 1.1rem; }
+.taskGroupHead span { min-width: 1.5rem; padding: .08rem .35rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent); font-size: .72rem; font-weight: 700; text-align: center; }
+.simpleTaskList { list-style: none; margin-top: .5rem; }
+.simpleTask { display: flex; align-items: flex-start; gap: .8rem; padding: .9rem 0; border-top: 1px solid var(--line); }
+.simpleTaskBody { min-width: 0; flex: 1; }
+.simpleTaskBody > strong { overflow-wrap: anywhere; }
+.simpleTaskNote { color: var(--ink-soft); font-size: .88rem; white-space: pre-wrap; }
+.simpleTaskMeta { display: flex; gap: .55rem; align-items: center; flex-wrap: wrap; margin-top: .35rem; color: var(--ink-soft); font-size: .76rem; }
+.taskCheck { flex: 0 0 auto; display: grid; place-items: center; width: 2rem; height: 2rem; margin-top: -.15rem; border: 2px solid var(--accent); border-radius: 50%; background: var(--surface); color: var(--accent-ink); cursor: pointer; }
+.taskCheck--done { background: var(--accent); }
+.taskCompleted { text-decoration: line-through; color: var(--ink-soft); }
+.simpleTaskActions { display: flex; gap: .3rem; flex-wrap: wrap; }
+.smallAction { border: 0; border-radius: 8px; padding: .4rem .5rem; min-height: 40px; background: transparent; color: var(--accent); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; }
+.smallAction:hover { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.simpleEdit { display: grid; gap: .7rem; margin-top: .8rem; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--background); }
+.overdueBadge { display: inline-flex; padding: .15rem .5rem; border-radius: 999px; background: color-mix(in srgb, var(--status-now) 18%, var(--surface)); color: var(--ink); font-size: .7rem; font-weight: 750; }
+.emptyTasks { padding: clamp(1.5rem, 4vw, 3rem); border: 1px dashed var(--line); border-radius: 20px; background: var(--surface); }
+.emptyTasks h2 { margin-bottom: .4rem; }
+.emptyTasks p { color: var(--ink-soft); max-width: 42ch; margin-bottom: 1rem; }
+.cardsView { align-items: center; text-align: center; }
+.cardsView > .hint { max-width: 50ch; }
+.appShell .toast { top: calc(4.25rem + .7rem); bottom: auto; left: auto; right: 1rem; transform: none; width: min(23rem, calc(100vw - 2rem)); font-size: .85rem; }
+.cardsProgress { color: var(--ink-soft); font-size: .8rem; }
+.decisionStack { width: min(100%, 38rem); margin: 1.5rem auto 0; }
+.decisionStackDesktop { position: relative; height: 25rem; }
+.decisionCard { position: absolute; top: 1rem; left: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 1.2rem; width: 16rem; height: 22rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 12px 28px rgb(42 16 24 / 16%); text-align: left; transition: transform 280ms cubic-bezier(.2, 1, .3, 1), box-shadow 280ms ease; }
+.decisionCard:hover, .decisionCard:focus-within { box-shadow: 0 18px 38px rgb(42 16 24 / 24%); }
+.decisionCardIndex { color: var(--ink-soft); font-size: .7rem; font-weight: 700; letter-spacing: .14em; margin-right: .5rem; }
+.decisionCardContent h3 { font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
+.decisionCardContent p { color: var(--ink-soft); font-size: .85rem; margin-top: .65rem; max-height: 4.5rem; overflow: hidden; }
+.decisionCardContent .hint { display: block; margin-top: .6rem; }
+.decisionDivider { height: 1px; background: var(--line); margin-bottom: .8rem; }
+.decisionActions { display: flex; gap: .35rem; flex-wrap: wrap; }
+.decisionActions .btn { min-height: 40px; min-width: auto; padding: .35rem .55rem; font-size: .75rem; border-width: 1px; }
+.decisionStackMobile { display: none; }
+
+/* Landing and dedicated sign-in screen follow the supplied mobile layout. */
+.publicPage { min-height: 100dvh; max-width: 76rem; margin: 0 auto; padding: 1.5rem clamp(1.2rem, 5vw, 4rem) 4rem; }
+.landingTop { display: inline-flex; align-items: center; gap: .7rem; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 1.2rem; }
+.landingTop img { width: 2.7rem; height: 2.7rem; border-radius: .7rem; }
+.landingHero { max-width: 44rem; padding: clamp(4rem, 12vh, 8rem) 0 5rem; }
+.landingHero h1 { font-size: clamp(2.2rem, 6vw, 4.6rem); line-height: 1.07; margin: .8rem 0 1rem; letter-spacing: -.045em; }
+.landingHero > p:not(.eyebrow) { color: var(--ink-soft); font-size: 1.05rem; max-width: 39ch; }
+.landingActions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.8rem; }
+.landingActions .btn { text-decoration: none; }
+.landingHow { border-top: 1px solid var(--line); padding-top: 2rem; }
+.landingHow h2 { font-size: 1.25rem; margin-bottom: 1rem; }
+.landingHow > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.landingHow article { padding: 1.2rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.landingHow article span { color: var(--accent); font-weight: 750; font-size: .75rem; }
+.landingHow article h3 { margin: .5rem 0; font-size: 1rem; }
+.landingHow article p { color: var(--ink-soft); font-size: .85rem; }
+.loginPage { display: flex; flex-direction: column; }
+.loginCard { width: min(100%, 26rem); margin: clamp(3rem, 9vh, 6rem) auto 0; padding: 1.8rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+.loginCard h1 { margin: .4rem 0; }
+.loginCard .authForm { margin-top: 1.5rem; }
+.loginBack { display: inline-block; margin-top: 1.2rem; color: var(--ink-soft); font-size: .85rem; }
+
+@media (min-width: 48rem) {
+  .appShell .workspace { display: block; }
+  .appShell .tabs { position: fixed; top: 4.25rem; bottom: 0; left: 0; right: auto; width: 15rem; height: calc(100dvh - 4.25rem); border-radius: 0; border-top: 0; border-left: 0; padding: 1.1rem .8rem; box-shadow: none; overflow: hidden; }
+  .appShell .workspaceMain { margin-left: 15rem; min-height: calc(100dvh - 4.25rem); padding: 2rem clamp(1.5rem, 4vw, 4rem); }
+  .appShell .tab { width: 100%; }
+  .sidebarHelp { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: auto; padding: .7rem .8rem; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink-soft); font: inherit; font-size: .78rem; cursor: pointer; text-align: left; }
+  .appShell .fab { display: none; }
+}
+
+@media (max-width: 47.99rem) {
+  .appShell .workspaceMain { padding: 1.3rem var(--space) calc(var(--nav-h) + 4rem); }
+  .appShell .tabs { overflow: hidden; }
+  .appShell .tab { min-width: 0; flex: 1 1 0; font-size: .62rem; }
+  .headerAdd { display: none; }
+  .signOutButton { border: 0; background: transparent; padding: .2rem; min-width: 48px; }
+  .signOutButton span { display: none; }
+  .decisionStackDesktop { display: none; }
+  .cardsView { gap: .65rem; }
+  .cardsView .decisionStack { margin-top: .35rem; }
+  .decisionStackMobile { display: block; position: relative; width: min(100%, 19rem); height: 19.5rem; margin: 0 auto; }
+  .decisionStackMobile .decisionCard { top: 1rem; width: 100%; height: 17.5rem; z-index: 3; }
+  .decisionCard--mobile .decisionCardContent { flex: 1; padding-top: .8rem; }
+  .decisionBack { position: absolute; top: .3rem; left: 4%; width: 92%; height: 17.5rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .decisionBack--0 { transform: translateY(-.2rem) scale(.94); opacity: .5; }
+  .decisionBack--1 { transform: translateY(.35rem) scale(.97); opacity: .8; z-index: 2; }
+  .decisionActions .btn { flex: 1; }
+  .simpleTask { flex-wrap: wrap; }
+  .simpleTaskActions { width: 100%; margin-left: 2.8rem; }
+  .tasksHeading .addTaskButton { display: none; }
+  .landingHero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: clamp(4rem, 15vh, 8rem) 0 4rem; }
+  .landingActions { flex-direction: column; }
+  .landingActions .btn { width: 100%; }
+  .landingHow > div { grid-template-columns: 1fr; }
+  .appShell .toast { top: calc(4.25rem + .3rem); right: .5rem; width: min(20rem, calc(100vw - 1rem)); padding: .45rem .6rem; }
+  .appShell .toast .btn { min-height: 38px; padding: .3rem .5rem; font-size: .78rem; }
+}
+
+@media (prefers-reduced-motion: reduce) { .decisionCard { transition: none; } }

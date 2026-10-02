@@ -49,15 +49,15 @@ test("email-code sign-in migrates local data once and keeps accounts isolated", 
   });
   expect(signedOut.status()).toBe(401);
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Sign in to sync", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A place for everything you need to do." })).toBeVisible();
 
   async function signIn(email: string) {
-    await page.getByRole("button", { name: "Sign in to sync", exact: true }).click();
+    await page.getByRole("link", { name: "I already have an account" }).click();
     await page.getByLabel("Email address", { exact: true }).fill(email);
     await page.getByRole("button", { name: "Email me a code", exact: true }).click();
     await page.getByLabel("Sign-in code", { exact: true }).fill("123456");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page.getByRole("button", { name: `Account: ${email}`, exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My tasks" })).toBeVisible();
   }
   await signIn("a@example.invalid");
   await expect.poll(() => byAccount.get("account-a")?.find((r) => r.kind === "task")?.id).toBe("tsk_legacy");
@@ -65,9 +65,8 @@ test("email-code sign-in migrates local data once and keeps accounts isolated", 
   await page.waitForTimeout(6500);
   expect(syncCount).toBeLessThan(4); // A completed sync must not schedule itself forever.
 
-  await page.getByRole("button", { name: "Account: a@example.invalid", exact: true }).click();
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sign in to sync", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("heading", { name: "A place for everything you need to do." })).toBeVisible();
   await signIn("b@example.invalid");
   await expect.poll(() => byAccount.has("account-b")).toBe(true);
   expect(byAccount.get("account-b")?.filter((r) => r.kind === "task")).toEqual([]);

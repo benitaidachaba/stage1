@@ -1,51 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
-import { AppIcons, ICON_SIZE } from "@/components/icons";
+import { LandingScreen } from "@/components/AuthPanel";
 import { CaptureBar } from "@/components/CaptureBar";
 import { LogTimeline } from "@/components/LogTimeline";
 import { NotesView } from "@/components/NotesView";
-import { NowView } from "@/components/NowView";
-import { Onboarding } from "@/components/Onboarding";
-import { PlannerView } from "@/components/PlannerView";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { TasksView } from "@/components/TasksView";
 import { TriageStack } from "@/components/TriageStack";
-import { TodayBoard } from "@/components/TodayBoard";
 import { UndoToast } from "@/components/UndoToast";
-import { UI } from "@/lib/copy";
-import { inbox } from "@/lib/selectors";
+import { UserGuide } from "@/components/UserGuide";
+import { AppIcons, ICON_SIZE } from "@/components/icons";
 import { useAppStore } from "@/state/AppStore";
 
-type Tab = "now" | "today" | "triage" | "planner" | "notes" | "log" | "settings";
-
-/**
- * Seven sections: the Pocket five plus Planner (week and month ahead) and
- * Notes. On phones the bar scrolls sideways rather than shrinking the words.
- */
+type Tab = "tasks" | "cards" | "notes" | "activity" | "settings";
 const TABS: Array<{ key: Tab; label: string; icon: keyof typeof AppIcons }> = [
-  { key: "today", label: UI.nav.today, icon: "today" },
-  { key: "now", label: UI.nav.now, icon: "now" },
-  { key: "triage", label: UI.nav.triage, icon: "triage" },
-  { key: "planner", label: UI.plannerHeading, icon: "today" },
-  { key: "notes", label: UI.notesNav, icon: "log" },
-  { key: "log", label: UI.nav.log, icon: "log" },
-  { key: "settings", label: UI.nav.settings, icon: "settings" },
+  { key: "tasks", label: "Tasks", icon: "today" },
+  { key: "cards", label: "Cards", icon: "triage" },
+  { key: "notes", label: "Notes", icon: "log" },
+  { key: "activity", label: "Activity", icon: "now" },
+  { key: "settings", label: "Settings", icon: "settings" },
 ];
 
-/**
- * The shell, drawn from the Pocket screens: a slim app bar, five sections and
- * a bottom tab bar on phones with a floating capture button; the same centred
- * column with top tabs on desktop. Capture is one tap away in both layouts.
- *
- * Nothing here decides what a task means — every panel reads the same store.
- */
 export default function Home() {
-  const { state, storageError, syncError, syncing, retrySync } = useAppStore();
-  const [tab, setTab] = useState<Tab>("today");
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const captureRef = useRef<HTMLDivElement>(null);
+  const { state, userEmail, storageError, syncError, syncing, retrySync } = useAppStore();
+  const [tab, setTab] = useState<Tab>("tasks");
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   useEffect(() => {
     const followHash = () => {
@@ -53,109 +36,52 @@ export default function Home() {
       if (TABS.some((entry) => entry.key === key)) setTab(key as Tab);
     };
     followHash();
+    if (new URLSearchParams(window.location.search).has("capture")) window.setTimeout(() => setCaptureOpen(true), 0);
     window.addEventListener("hashchange", followHash);
     return () => window.removeEventListener("hashchange", followHash);
   }, []);
 
-  if (!state.hydrated) {
-    return (
-      <div className="shell">
-        <p className="hint">{UI.loading}</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!captureOpen && !guideOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { setCaptureOpen(false); setGuideOpen(false); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [captureOpen, guideOpen]);
 
-  const inboxCount = inbox(state).length;
-  const onboarded = state.settings.onboarded;
+  if (!state.hydrated) return <p className="loadingPage">Opening Pocket…</p>;
+  if (!userEmail) return <LandingScreen />;
 
-  function jumpToCapture() {
-    if (!onboarded) return;
-    if (window.matchMedia("(min-width: 48rem)").matches) {
-      captureRef.current?.querySelector("input")?.focus();
-    } else {
-      setSheetOpen(true);
-    }
-  }
-
-  return (
-    <div className="shell">
-      <a className="skipLink" href="#main-content">Skip to tasks</a>
-      <ServiceWorkerRegistrar />
-      <AppHeader onJumpToCapture={jumpToCapture} />
-      <Onboarding />
-
-      <div className="workspace">
-      {/* Capture. Inline on desktop; on phones the FAB expands the sheet. */}
-      <button
-        type="button"
-        className="fab"
-        aria-label="Capture a task"
-        aria-expanded={sheetOpen}
-        onClick={() => setSheetOpen((open) => !open)}
-      >
-        <AppIcons.capture size={ICON_SIZE.control} weight="bold" aria-hidden="true" />
-      </button>
-      {sheetOpen ? (
-        <div className="captureSheet">
-          <CaptureBar sheet />
-        </div>
-      ) : null}
-
+  return <div className="shell appShell">
+    <a className="skipLink" href="#main-content">Skip to tasks</a>
+    <ServiceWorkerRegistrar />
+    <AppHeader onAdd={() => setCaptureOpen(true)} onHelp={() => setGuideOpen(true)} />
+    <div className="workspace">
       <nav className="tabs" aria-label="Main sections">
         {TABS.map((entry) => {
           const Icon = AppIcons[entry.icon];
-          return (
-            <button
-              key={entry.key}
-              type="button"
-              className={`tab${tab === entry.key ? " tab--on" : ""}${entry.key === "planner" || entry.key === "notes" ? " tab--extra" : ""}`}
-              aria-current={tab === entry.key ? "page" : undefined}
-              onClick={() => {
-                setTab(entry.key);
-                window.location.hash = entry.key;
-                setSheetOpen(false);
-              }}
-            >
-              <Icon size={ICON_SIZE.inline} weight={tab === entry.key ? "fill" : "regular"} aria-hidden="true" />
-              {entry.label}
-              {entry.key === "triage" && inboxCount > 0 ? (
-                <span className="tabCount" aria-label={`${inboxCount} in the inbox`}>
-                  {inboxCount}
-                </span>
-              ) : null}
-            </button>
-          );
+          return <button key={entry.key} type="button" className={`tab${tab === entry.key ? " tab--on" : ""}`}
+            aria-current={tab === entry.key ? "page" : undefined}
+            onClick={() => { setTab(entry.key); window.location.hash = entry.key; }}>
+            <Icon size={ICON_SIZE.inline} weight={tab === entry.key ? "fill" : "regular"} aria-hidden="true" />{entry.label}
+          </button>;
         })}
+        <button type="button" className="sidebarHelp" onClick={() => setGuideOpen(true)}>How to use Pocket <span aria-hidden="true">↗</span></button>
       </nav>
-
       <div className="workspaceMain">
-      <div ref={captureRef} className="captureInline"><CaptureBar /></div>
-
-      {storageError ? (
-        <p className="storageWarning" role="status">
-          {storageError}
-        </p>
-      ) : null}
-
-      {syncError ? (
-        <div className="storageWarning syncWarning" role="alert">
-          <div><strong>Cloud sync needs attention</strong><p>{syncError}</p><p className="hint">Your work is still saved on this device.</p></div>
-          <button className="btn" disabled={syncing} onClick={retrySync}>{syncing ? "Retrying…" : "Retry sync"}</button>
-        </div>
-      ) : null}
-
-      <main className="content" id="main-content">
-        {tab === "now" ? <NowView /> : null}
-        {tab === "today" ? <TodayBoard /> : null}
-        {tab === "triage" ? <TriageStack /> : null}
-        {tab === "planner" ? <PlannerView /> : null}
-        {tab === "notes" ? <NotesView /> : null}
-        {tab === "log" ? <LogTimeline /> : null}
-        {tab === "settings" ? <SettingsPanel /> : null}
-      </main>
+        {storageError ? <p className="storageWarning" role="status">{storageError}</p> : null}
+        {syncError ? <div className="storageWarning syncWarning" role="alert"><div><strong>Cloud sync needs attention</strong><p>{syncError}</p><p className="hint">Your work is still saved on this device.</p></div><button className="btn" disabled={syncing} onClick={retrySync}>{syncing ? "Retrying…" : "Retry sync"}</button></div> : null}
+        <main className="content" id="main-content">
+          {tab === "tasks" ? <TasksView /> : null}
+          {tab === "cards" ? <TriageStack /> : null}
+          {tab === "notes" ? <NotesView /> : null}
+          {tab === "activity" ? <LogTimeline /> : null}
+          {tab === "settings" ? <SettingsPanel /> : null}
+        </main>
       </div>
-      </div>
-      <UndoToast />
     </div>
-  );
+    <button type="button" className="fab" aria-label="Add a task" onClick={() => setCaptureOpen(true)}><AppIcons.capture size={ICON_SIZE.control} weight="bold" aria-hidden="true" /></button>
+    {captureOpen ? <div className="modalScrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setCaptureOpen(false); }}><div className="captureDialog" role="dialog" aria-modal="true" aria-label="New task"><button type="button" className="modalClose" aria-label="Close new task form" onClick={() => setCaptureOpen(false)}>×</button><CaptureBar sheet onSaved={() => setCaptureOpen(false)} /></div></div> : null}
+    {guideOpen ? <UserGuide onClose={() => setGuideOpen(false)} /> : null}
+    <UndoToast />
+  </div>;
 }

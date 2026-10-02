@@ -5,7 +5,7 @@ import { parseCapture } from "./parse";
 import { firstFireAt, recordInteraction, snoozeReminder, stopReminder } from "./escalation";
 import { REMINDER_CHANNEL_LABEL, nudgeText, plural, quietHoursLine, STATUS } from "./copy";
 import { clearTasks } from "./storage";
-import { addDays, addMinutes, describeDue, minutesBetween } from "./format";
+import { addDays, addMinutes, describeDue, isSameDay, minutesBetween } from "./format";
 
 /** Capture times are kept as a small rolling window, not an ever-growing log. */
 const CAPTURE_SAMPLE_LIMIT = 200;
@@ -179,6 +179,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
           id: newId("tsk"),
           title: parsed.title,
           dueAt,
+          status: dueAt ? (isSameDay(new Date(dueAt), now) ? "today" : "scheduled") : "inbox",
           note: description,
           estimateMinutes: parsed.estimateMinutes,
           energy: parsed.energy,
@@ -231,6 +232,9 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         action.id,
         (task) => {
           let next: Task = { ...task, ...patch, updatedAt: at };
+          if (patch.dueAt !== undefined && task.status !== "done" && task.status !== "dropped" && task.status !== "now") {
+            next = { ...next, status: patch.dueAt ? (isSameDay(new Date(patch.dueAt), now) ? "today" : "scheduled") : "inbox" };
+          }
           if (patch.dueAt !== undefined || patch.reminder !== undefined) {
             next = { ...next, reminder: { ...next.reminder, enabled: false, nextFireAt: null } };
           }
@@ -918,11 +922,11 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
     }
 
     case "reset.run": {
-      // The Daily Reset: every task whose date went by returns for a new home.
+      // Move past-due work to Later while preserving its original date for the badge.
       // It is one logged action, so the reset itself has a record.
       const stale = state.tasks.filter(
         (task) => task.status !== "done" && task.status !== "dropped" && !task.archived && task.dueAt !== null &&
-          new Date(task.dueAt).getTime() < now.getTime(),
+          new Date(task.dueAt).getTime() < new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(),
       );
       if (stale.length === 0) {
         log("reset.completed", null, "The reset found nothing that needed a new home.");
@@ -934,7 +938,7 @@ export function reduce(prev: AppState, action: Action, now: Date = new Date()): 
         ...state,
         tasks: state.tasks.map((task) =>
           staleIds.has(task.id)
-            ? { ...task, status: "inbox", updatedAt: at, lastDecisionAt: at, reminder: { ...task.reminder, enabled: false, nextFireAt: null } }
+            ? { ...task, status: "scheduled", updatedAt: at, lastDecisionAt: at, reminder: { ...task.reminder, enabled: false, nextFireAt: null } }
             : task,
         ),
       };

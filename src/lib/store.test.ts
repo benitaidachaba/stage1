@@ -10,6 +10,8 @@ import {
   scheduledTasks,
   todayTasks,
   triageQueue,
+  taskSections,
+  isOverdue,
 } from "./selectors";
 import { LADDER_MAX_STEP } from "./escalation";
 
@@ -50,6 +52,17 @@ function fire(state: AppState, id: string, step: number, nextFireAt: string | nu
 }
 
 describe("capture", () => {
+  it("shows new tasks immediately and groups dates by the current day", () => {
+    let state = reduce(base(), { type: "capture", input: { text: "Call Alex", dueAt: at(60).toISOString() } }, NOW);
+    state = reduce(state, { type: "capture", input: { text: "Reply to email", dueAt: at(-24 * 60).toISOString() } }, NOW);
+    state = reduce(state, { type: "capture", input: { text: "Buy milk" } }, NOW);
+    const sections = taskSections(state, NOW);
+    expect(sections.today.map((task) => task.title)).toEqual(["Call Alex"]);
+    expect(sections.later.map((task) => task.title)).toEqual(["Reply to email"]);
+    expect(isOverdue(sections.later[0], NOW)).toBe(true);
+    expect(sections.noDate.map((task) => task.title)).toEqual(["Buy milk"]);
+  });
+
   it("keeps a task's chosen reminder lead time and replans it when changed", () => {
     const dueAt = at(90).toISOString();
     const created = reduce(base(), { type: "capture", input: { text: "Call Alex", dueAt, reminderLeadMinutes: 15 } }, NOW);
@@ -70,7 +83,7 @@ describe("capture", () => {
     expect(task.id.startsWith("tsk_")).toBe(true);
     expect(task.title).toBe("Send the report");
     expect(task.tags).toContain("work");
-    expect(task.status).toBe("inbox");
+    expect(task.status).toBe("scheduled");
     expect(task.dueAt).toBe(new Date(2026, 4, 13, 16, 0, 0).toISOString());
 
     // The reminder is derived, not asked for: due time minus the lead time.
@@ -167,15 +180,15 @@ describe("triage", () => {
 });
 
 describe("the daily reset", () => {
-  it("returns stale tasks to the inbox and says so plainly", () => {
+  it("keeps stale tasks in Later with their original due date", () => {
     const start = capture(base(), "The thing that slipped");
     const id = start.tasks[0].id;
     const yesterday = new Date(2026, 4, 11, 9, 0, 0);
     const scheduled = reduce(start, { type: "triage", id, status: "scheduled", dueAt: yesterday.toISOString() }, NOW);
     const state = reduce(scheduled, { type: "reset.run", at: NOW.toISOString() }, NOW);
 
-    expect(state.tasks[0].status).toBe("inbox");
-    expect(inbox(state)).toHaveLength(1);
+    expect(state.tasks[0].status).toBe("scheduled");
+    expect(state.tasks[0].dueAt).toBe(yesterday.toISOString());
     expect(lastEvent(state).type).toBe("reset.completed");
     expect(lastEvent(state).summary).toContain("Nothing was lost");
   });
@@ -391,7 +404,7 @@ describe("undo", () => {
     const done = reduce(start, { type: "complete", id }, NOW);
     const state = reduce(done, { type: "undo" }, at(1));
 
-    expect(state.tasks[0].status).toBe("inbox");
+    expect(state.tasks[0].status).toBe("scheduled");
     expect(state.tasks[0].resolution).toBeNull();
     expect(eventTypes(state)).toEqual([
       "task.created",

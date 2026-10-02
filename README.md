@@ -1,8 +1,8 @@
 # Pocket
 
-A mobile-first todo app with quick capture, inbox triage, focus timers,
-planning, notes, and accessible display settings. Neon Auth and Postgres power
-account sign-in and cloud sync. Offline work stays in browser storage.
+A mobile-first todo app with a direct task list, quick review cards, notes, and
+accessible display settings. Neon Auth and Postgres power account sign-in and
+cloud sync. Offline work stays in browser storage.
 
 ## Local setup
 
@@ -22,7 +22,8 @@ The current directory is linked to the `Pocket todo` project. `.neon` and
 An example is provided in `.env.example`; never put these credentials in
 `NEXT_PUBLIC_` variables. The cookie secret has already been generated locally.
 
-Open http://localhost:3000 and choose **Sign in**. Request an email code and
+Open http://localhost:3000. Signed-out visitors see the landing page; choose
+**Get started** or **I already have an account** to open `/login`. Request an email code and
 enter the six digits to sign in or create your Neon account. The same-origin
 `/api/auth/*` routes use Neon's Next.js SDK and HTTP-only session cookies.
 Localhost sign-in is enabled on this branch. Register your deployed origin with
@@ -31,7 +32,21 @@ Localhost sign-in is enabled on this branch. Register your deployed origin with
 The app uses TypeScript, Tailwind CSS v4, and a shadcn-compatible
 `components.json`. UI components live in `src/components/ui` because the
 `@/*` alias points to `src/*`. Add more with `npx shadcn@latest add <component>`.
-The supplied hover-stack interaction is adapted for the task triage deck there.
+The supplied hover-stack interaction is adapted for the task review cards there.
+
+## User flow
+
+- **Tasks** shows every new task immediately. Due today appears in Today;
+  future and past due tasks appear in Later. Past due tasks retain their date
+  and show an Overdue badge. Undated tasks appear under No date.
+- The **plus** button opens the task form as a popup on desktop and mobile.
+  A title is enough. Save closes the popup and the task appears in Tasks.
+- **Cards** provides a quick pass through unfinished tasks. Choose Done,
+  Tomorrow, or Skip. Tomorrow moves the due date forward and keeps the task in
+  Later. On desktop cards spread on hover; on touch screens they form a deck.
+- **Notes** holds ideas that are not tasks, **Activity** shows the log, and
+  **Settings** holds preferences. The help button opens the built-in guide.
+  **Log out** returns to the landing page.
 
 Task creation records its time automatically. Due date and time are optional;
 when supplied, each task can choose a reminder at the deadline or 5, 10, 15,
@@ -63,7 +78,7 @@ Each account has a separate offline cache. The first Neon account on this
 browser adopts the previous local working set, preserving an untouched backup
 under `smallsteps.tasks.v2:pre-neon-backup` (the exact prefix is `STORAGE_KEY` in
 `src/lib/defaults.ts`). Other accounts do not inherit it. Signing out returns
-to the guest working set; account data remains available after signing back in.
+to the landing page; account data remains available after signing back in.
 Existing old-provider sessions do not carry over: sign in again with Neon.
 If you have records saved only in an old cloud account, export and import them
 using Pocket's Settings before discarding that account.
@@ -94,7 +109,7 @@ npx tsc --noEmit
 npm run build
 ```
 
-- Missing sign-in button: check `NEON_AUTH_BASE_URL` and the cookie secret,
+- Sign-in unavailable on `/login`: check `NEON_AUTH_BASE_URL` and the cookie secret,
   then restart the server/rebuild after changing configuration.
 - Email code failure: use a fresh code, check Neon Auth email settings, and
   confirm the app origin is allowed. Configure custom SMTP for production.

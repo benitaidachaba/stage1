@@ -19,6 +19,24 @@ export function inbox(state: AppState): Task[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+/** Every live task is visible in Tasks, with dates deciding its section. */
+export function taskSections(state: AppState, now: Date): { today: Task[]; later: Task[]; noDate: Task[]; completed: Task[] } {
+  const start = startOfDay(now).getTime();
+  const end = endOfDay(now).getTime();
+  const active = state.tasks.filter((task) => !task.archived && task.status !== "done" && task.status !== "dropped");
+  const byDue = (a: Task, b: Task) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999");
+  return {
+    today: active.filter((task) => task.dueAt && new Date(task.dueAt).getTime() >= start && new Date(task.dueAt).getTime() <= end).sort(byDue),
+    later: active.filter((task) => task.dueAt && (new Date(task.dueAt).getTime() < start || new Date(task.dueAt).getTime() > end)).sort(byDue),
+    noDate: active.filter((task) => !task.dueAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    completed: state.tasks.filter((task) => !task.archived && task.status === "done").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+  };
+}
+
+export function isOverdue(task: Task, now: Date): boolean {
+  return !!task.dueAt && new Date(task.dueAt).getTime() < startOfDay(now).getTime() && task.status !== "done";
+}
+
 /** Today: chosen for today, in the order they were chosen. */
 export function todayTasks(state: AppState): Task[] {
   return state.tasks

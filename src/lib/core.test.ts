@@ -123,8 +123,8 @@ describe("the new state model", () => {
     expect(needsNewHome(two, NOW)).toHaveLength(1);
 
     const three = reduce(two, { type: "reset.run", at: NOW.toISOString() }, at(2));
-    expect(three.tasks[0].status).toBe("inbox");
-    expect(needsNewHome(three, NOW)).toHaveLength(0);
+    expect(three.tasks[0].status).toBe("scheduled");
+    expect(needsNewHome(three, NOW)).toHaveLength(1);
   });
 });
 
